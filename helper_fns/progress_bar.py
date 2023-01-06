@@ -15,6 +15,19 @@ def get_progress_bar_string(current,total):
     p_str = f"[{p_str}]"
     return p_str
 
+
+def get_progress_bar_from_percentage(percentage):
+    try:
+        p = int(percentage)
+    except:
+        p = 0
+    p = min(max(p, 0), 100)
+    cFull = p // 6
+    p_str = '■' * cFull
+    p_str += '□' * (16 - cFull)
+    p_str = f"[{p_str}]"
+    return p_str
+
 timer = Timer(7)
 
 

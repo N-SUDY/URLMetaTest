@@ -111,11 +111,13 @@ async def new_user(user_id):
         User_Data[user_id]['watermark']['position'] = '5:5'
         User_Data[user_id]['watermark']['size'] = '7'
         User_Data[user_id]['watermark']['crf'] = '23'
+        User_Data[user_id]['watermark']['use_crf'] = False
         User_Data[user_id]['watermark']['encode'] = True
         User_Data[user_id]['watermark']['encoder'] = 'libx265'
         User_Data[user_id]['watermark']['preset'] = 'ultrafast'
         User_Data[user_id]['muxer'] = {}
         User_Data[user_id]['muxer']['preset'] = 'ultrafast'
+        User_Data[user_id]['muxer']['use_crf'] = False
         User_Data[user_id]['muxer']['crf'] = '23'
         User_Data[user_id]['muxer']['encode'] = True
         User_Data[user_id]['muxer']['encoder'] = 'libx265'
@@ -129,6 +131,8 @@ async def new_user(user_id):
         User_Data[user_id]['split_video'] = False
         User_Data[user_id]['split'] = '2GB'
         User_Data[user_id]['upload_tg'] = True
+        User_Data[user_id]['rclone'] = False
+        User_Data[user_id]['drive_name'] = False
         data = await db.add_datam(str(User_Data), CREDIT, "User_Data")
         return data
 

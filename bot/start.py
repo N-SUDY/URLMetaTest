@@ -1,7 +1,7 @@
 from pyrogram import Client,  filters
 from config import Config
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from helper_fns.helper import get_readable_time, USER_DATA, get_media, timex, delete_all, delete_trash, new_user, create_process_file, make_direc, durationx, clear_trash_list, check_filex, save_restart, process_checker
+from helper_fns.helper import get_readable_time, USER_DATA, get_media, timex, delete_all, delete_trash, new_user, create_process_file, make_direc, durationx, clear_trash_list, check_filex, save_restart, process_checker, saveoptions
 from config import botStartTime
 from helper_fns.watermark import vidmarkx, hardmux_vidx, softmux_vidx, softremove_vidx
 from string import ascii_lowercase, digits
@@ -9,15 +9,15 @@ from random import choices
 from asyncio import sleep as asynciosleep
 from pyrogram.errors import FloodWait
 from helper_fns.process import append_master_process, remove_master_process, get_master_process, append_sub_process, remove_sub_process, get_sub_process
-from os.path import getsize
 from os import execl
 from sys import argv, executable
-from helper_fns.engine import ffmpeg_engine
+from helper_fns.engine import ffmpeg_engine, upload_rclone
 from helper_fns.progress_bar import progress_bar
 from helper_fns.helper import execute
 from json import loads
 from math import ceil
-from os.path import getsize, splitext, join
+from os.path import getsize, splitext, join, exists
+from re import escape
 
 
 
@@ -152,6 +152,7 @@ async def split_video_file(bot, user_id, reply, split_size, dirpath, file, file_
 async def processor(bot, message, muxing_type):
                 user_id = message.chat.id
                 userx = message.from_user.id
+                trash_list = []
                 Ddir = f'./{str(userx)}_RAW'
                 Wdir = f'./{str(userx)}_WORKING'
                 Sdir = f'./{str(userx)}_Split'
@@ -186,6 +187,7 @@ async def processor(bot, message, muxing_type):
                                 thumbm = await bot.get_messages(user_id, thumb, replies=0)
                                 thumb_name = get_media(thumbm).file_name.replace(' ', '')
                                 thumb_loc = f'{Ddir}/{str(userx)}_{str(thumb_name)}'
+                                trash_list.append(thumb_loc)
                                 thumb_download = await bot.download_media(thumbm, thumb_loc)
                                 if thumb_download is None:
                                         await delete_trash(thumb_loc)
@@ -219,12 +221,12 @@ async def processor(bot, message, muxing_type):
                 process_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
                 append_master_process(process_id)
                 mptime = timex()
-                trash_list = []
                 map = '0:a'
                 if muxing_type not in ('Watermark', 'Compressing'):
                                 subm = await bot.get_messages(user_id, sub_id, replies=0)
                                 sub_name = get_media(subm).file_name.replace(' ', '')
                                 sub_loc = f'{Ddir}/{str(userx)}_{str(sub_name)}'
+                                trash_list.append(sub_loc)
                                 sub_download = await bot.download_media(subm, sub_loc)
                                 if sub_download is None:
                                         await delete_trash(sub_loc)
@@ -234,7 +236,11 @@ async def processor(bot, message, muxing_type):
                                         return
                 m = await bot.get_messages(user_id, file_id, replies=0)
                 media = get_media(m)
-                file_name = media.file_name.replace(' ', '').replace('/', '_').replace('[', '_').replace(']', '_')
+                file_name = media.file_name
+                punc = ['!', '(', ')', '[', ']', '|', '{', '}', ';', ':', "'", '=', '"', '\\', ',', '<', '>', '/', '?', '@', '#', '$', '%', '^', '&', '*', '~', "  ", "\t", "+", "b'", "'"]
+                for ele in punc:
+                        if ele in file_name:
+                                file_name = file_name.replace(ele, '')
                 dl_loc = f'{Ddir}/{str(userx)}_{str(file_name)}'
                 start_time = timex()
                 modes = {'files': 1, 'process_id': process_id}
@@ -253,7 +259,7 @@ async def processor(bot, message, muxing_type):
                                 the_media = download[1]
                                 trash_list.append(the_media)
                                 select_stream = USER_DATA()[userx]['select_stream']
-                                language = 'ENG'
+                                language = USER_DATA()[userx]['stream']
                                 if select_stream:
                                         get_streams = await execute(
                                                                                                 f"ffprobe -hide_banner -show_streams -print_format json '{the_media}'"
@@ -324,88 +330,168 @@ async def processor(bot, message, muxing_type):
                                 progress = f"{Wdir}/{str(userx)}_{str(file_name)}_progress.txt"
                                 await create_process_file(progress)
                                 if muxing_type=='Watermark':
-                                        output_vid = f"{Wdir}/{str(userx)}_{str(file_name)}"
+                                        ename = f'{str(userx)}_{str(file_name)}'
+                                        output_vid = f"{Wdir}/{ename}"
                                         preset = USER_DATA()[userx]['watermark']['preset']
                                         watermark_position = USER_DATA()[userx]['watermark']['position']
                                         watermark_size = USER_DATA()[userx]['watermark']['size']
                                         watermark_crf = USER_DATA()[userx]['watermark']['crf']
+                                        encode = USER_DATA()[userx]['watermark']['encode']
+                                        use_crf = USER_DATA()[userx]['watermark']['use_crf']
                                         modes['watermark_position'] = watermark_position
                                         modes['watermark_size'] = watermark_size
-                                        modes['crf'] = watermark_crf
+                                        if use_crf:
+                                                modes['crf'] = watermark_crf
+                                        else:
+                                                modes['crf'] = 'Off'
                                         watermark_path = f'./{str(userx)}_watermark.jpg'
                                         process_name = '🛺Adding Watermark'
-                                        command = [
-                                                                "ffmpeg", "-hide_banner", "-progress", progress, "-i", the_media, "-i", watermark_path, "-map", f"0:v", "-map", f"{str(map)}", "-map", f"0:s",
-                                                                "-filter_complex", f"[1][0]scale2ref=w='iw*{watermark_size}/100':h='ow/mdar'[wm][vid];[vid][wm]overlay={watermark_position}", "-preset", preset,'-vcodec','libx265',
-                                                                '-vtag', 'hvc1', '-crf',f'{str(watermark_crf)}', "-c:a", "copy", "-y", output_vid
-                                                        ]
+                                        command = ["ffmpeg", "-hide_banner", "-progress", progress, "-i", the_media, "-i", watermark_path, "-map", f"0:v", "-map", f"{str(map)}", "-map", f"0:s",
+                                                                        "-filter_complex", f"[1][0]scale2ref=w='iw*{watermark_size}/100':h='ow/mdar'[wm][vid];[vid][wm]overlay={watermark_position}", "-preset", preset]
+                                        if encode:
+                                                encoder = USER_DATA()[userx]['watermark']['encoder']
+                                                modes['encoder'] = encoder
+                                                if encoder=='libx265':
+                                                        c_mid = ['-vcodec','libx265', '-vtag', 'hvc1']
+                                                else:
+                                                        c_mid = ['-vcodec','libx264']
+                                        else:
+                                                modes['encoder'] = "False"
+                                                c_mid = ['-codec:a','copy']
+                                        if use_crf:
+                                                command = command + c_mid + ['-crf',f'{str(watermark_crf)}', "-y", output_vid]
+                                        else:
+                                                command = command + c_mid + ["-y", output_vid]
+                                        print(command)
                                 elif muxing_type == 'HardMux':
-                                        output_vid = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(muxing_type)}).mp4"
+                                        ename = f'{str(userx)}_{str(file_name)}_({str(muxing_type)}).mp4'
+                                        output_vid = f"{Wdir}/{ename}"
                                         preset =  USER_DATA()[userx]['muxer']['preset']
+                                        muxer_crf = USER_DATA()[userx]['muxer']['crf']
+                                        use_crf = USER_DATA()[userx]['muxer']['use_crf']
+                                        if use_crf:
+                                                modes['crf'] = muxer_crf
+                                        else:
+                                                modes['crf'] = 'Off'
+                                        encode = USER_DATA()[userx]['muxer']['encode']
                                         process_name = '🎮HardMuxing Subtitles'
-                                        command = [
-                                                                'ffmpeg','-hide_banner',
+                                        command = ['ffmpeg','-hide_banner',
                                                                 '-progress', progress, '-i', the_media,
                                                                 '-vf', f"subtitles='{sub_loc}'",
                                                                 '-map','0:v',
                                                                 '-map',f'{str(map)}',
-                                                                '-preset', preset,
-                                                                '-c:a','copy',
-                                                                '-y',output_vid
-                                                                ]
+                                                                '-preset', preset]
+                                        if encode:
+                                                encoder = USER_DATA()[userx]['muxer']['encoder']
+                                                modes['encoder'] = encoder
+                                                if encoder=='libx265':
+                                                        c_mid = ['-vcodec','libx265', '-vtag', 'hvc1']
+                                                else:
+                                                        c_mid = ['-vcodec','libx264']
+                                        else:
+                                                modes['encoder'] = "False"
+                                                c_mid = ['-c:a','copy']
+                                        if use_crf:
+                                                command = command + c_mid + ['-crf',f'{str(muxer_crf)}', "-y", output_vid]
+                                        else:
+                                                command = command + c_mid + ["-y", output_vid]
+                                        print(command)
                                 elif muxing_type == 'SoftMux':
-                                        output_vid = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(muxing_type)}).mkv"
+                                        ename = f'{str(userx)}_{str(file_name)}_({str(muxing_type)}).mkv'
+                                        output_vid = f"{Wdir}/{ename}"
                                         preset =  USER_DATA()[userx]['muxer']['preset']
+                                        muxer_crf = USER_DATA()[userx]['muxer']['crf']
+                                        use_crf = USER_DATA()[userx]['muxer']['use_crf']
+                                        encode = USER_DATA()[userx]['muxer']['encode']
                                         process_name = '🎮SoftMuxing Subtitles'
-                                        command = [
-                                                                'ffmpeg','-hide_banner',
+                                        command = ['ffmpeg','-hide_banner',
                                                                 '-progress', progress, '-i', the_media,
                                                                 '-i',sub_loc,
                                                                 '-map','1:0',
                                                                 '-map','0:v',
                                                                 '-map',f'{str(map)}',
                                                                 '-map','0:s',
-                                                                '-disposition:s:0','default',
-                                                                '-c:v','copy',
-                                                                '-c:a','copy',
-                                                                '-c:s','copy',
-                                                                '-y',output_vid
-                                                                ]
+                                                                '-disposition:s:0','default']
+                                        if encode:
+                                                if use_crf:
+                                                        modes['crf'] = muxer_crf
+                                                else:
+                                                        modes['crf'] = 'Off'
+                                                encoder = USER_DATA()[userx]['muxer']['encoder']
+                                                modes['encoder'] = encoder
+                                                if use_crf:
+                                                        if encoder=='libx265':
+                                                                c_mid = ['-vcodec','libx265', '-vtag', 'hvc1', '-crf', f'{str(muxer_crf)}', '-preset', preset]
+                                                        else:
+                                                                c_mid = ['-vcodec','libx264', '-crf', f'{str(muxer_crf)}', '-preset', preset]
+                                                else:
+                                                        if encoder=='libx265':
+                                                                c_mid = ['-vcodec','libx265', '-vtag', 'hvc1', '-preset', preset]
+                                                        else:
+                                                                c_mid = ['-vcodec','libx264', '-preset', preset]
+                                        else:
+                                                modes['crf'] = "False"
+                                                modes['encoder'] = "False"
+                                                c_mid = ['-c','copy']
+                                        command = command + c_mid + ["-y", output_vid]
+                                        print(command)
                                 elif muxing_type == 'SoftReMux':
-                                        output_vid = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(muxing_type)}).mkv"
+                                        ename = f'{str(userx)}_{str(file_name)}_({str(muxing_type)}).mkv'
+                                        output_vid = f"{Wdir}/{ename}"
                                         preset =  USER_DATA()[userx]['muxer']['preset']
+                                        muxer_crf = USER_DATA()[userx]['muxer']['crf']
+                                        use_crf = USER_DATA()[userx]['muxer']['use_crf']
+                                        encode = USER_DATA()[userx]['muxer']['encode']
                                         process_name = '🎮SoftReMuxing Subtitles'
-                                        command = [
-                                                                'ffmpeg','-hide_banner',
+                                        command = ['ffmpeg','-hide_banner',
                                                                 '-progress', progress, '-i', the_media,
                                                                 '-i',sub_loc,
                                                                 '-map','0:v',
                                                                 '-map',f'{str(map)}',
                                                                 '-map','1:0',
-                                                                '-disposition:s:0','default',
-                                                                '-c:v','copy',
-                                                                '-c:a','copy',
-                                                                '-c:s','copy',
-                                                                '-y',output_vid
-                                                                ]
+                                                                '-disposition:s:0','default']
+                                        if encode:
+                                                if use_crf:
+                                                        modes['crf'] = muxer_crf
+                                                else:
+                                                        modes['crf'] = 'Off'
+                                                encoder = USER_DATA()[userx]['muxer']['encoder']
+                                                modes['encoder'] = encoder
+                                                if use_crf:
+                                                        if encoder=='libx265':
+                                                                c_mid = ['-vcodec','libx265', '-vtag', 'hvc1', '-crf', f'{str(muxer_crf)}', '-preset', preset]
+                                                        else:
+                                                                c_mid = ['-vcodec','libx264', '-crf', f'{str(muxer_crf)}', '-preset', preset]
+                                                else:
+                                                        if encoder=='libx265':
+                                                                c_mid = ['-vcodec','libx265', '-vtag', 'hvc1', '-preset', preset]
+                                                        else:
+                                                                c_mid = ['-vcodec','libx264', '-preset', preset]
+                                        else:
+                                                modes['crf'] = "False"
+                                                modes['encoder'] = "False"
+                                                c_mid = ['-c','copy']
+                                        command = command + c_mid + ["-y", output_vid]
+                                        print(command)
                                 elif muxing_type=='Compressing':
-                                        output_vid = f"{Wdir}/{str(userx)}_{str(file_name)}.mkv"
+                                        ename = f'{str(userx)}_{str(file_name)}.mkv'
+                                        output_vid = f"{Wdir}/{ename}"
                                         preset =  USER_DATA()[userx]['compress']['preset']
                                         compress_crf = USER_DATA()[userx]['compress']['crf']
+                                        encoder = USER_DATA()[userx]['compress']['encoder']
+                                        modes['encoder'] = encoder
                                         process_name = '🏮Compressing Video'
                                         modes['crf'] = compress_crf
-                                        command = [
-                                                                'ffmpeg','-hide_banner',
+                                        command = ['ffmpeg','-hide_banner',
                                                                 '-progress', progress, '-i', the_media,
                                                                 '-map','0:v',
                                                                 '-map',f'{str(map)}',
-                                                                "-map", "0:s",
-                                                                '-vcodec','libx265',
-                                                                '-vtag', 'hvc1',
-                                                                '-preset', preset,
-                                                                '-crf',f'{str(compress_crf)}',
-                                                                '-y',output_vid
-                                                                ]
+                                                                "-map", "0:s"]
+                                        if encoder=='libx265':
+                                                c_mid = ['-vcodec','libx265', '-vtag', 'hvc1']
+                                        else:
+                                                c_mid = ['-vcodec','libx264']
+                                        command = command + c_mid + ['-preset', preset, '-crf',f'{str(compress_crf)}', '-y',output_vid]
                                 trash_list.append(output_vid)
                                 await delete_trash(output_vid)
                                 datam = (file_name, process_name, mptime)
@@ -416,74 +502,89 @@ async def processor(bot, message, muxing_type):
                                                 await clear_trash_list(trash_list)
                                                 await reply.edit("🔒Task Cancelled By User")
                                         else:
-                                                compression = True
-                                                if compression:
-                                                        base_name, extension = splitext(output_vid)
-                                                        compressed_vid = f"{Wdir}/{str(userx)}_{str(file_name)}_compressed{str(extension)}"
-                                                        preset =  USER_DATA()[userx]['compress']['preset']
-                                                        compress_crf = USER_DATA()[userx]['compress']['crf']
-                                                        process_name = '🏮Compressing Video'
-                                                        modes['crf'] = compress_crf
-                                                        command = [
-                                                                                'ffmpeg','-hide_banner',
-                                                                                '-progress', progress, '-i', output_vid,
-                                                                                '-map','0:v',
-                                                                                '-map','0:a',
-                                                                                "-map", "0:s",
-                                                                                '-vcodec','libx265',
-                                                                                '-vtag', 'hvc1',
-                                                                                '-preset', preset,
-                                                                                '-crf',f'{str(compress_crf)}',
-                                                                                '-y',compressed_vid
-                                                                                ]
-                                                        trash_list.append(compressed_vid)
-                                                        await delete_trash(compressed_vid)
-                                                        await create_process_file(progress)
-                                                        datam = (file_name, process_name, mptime)
-                                                        modes['process_type'] = 'Compressing'
-                                                        cresult = await ffmpeg_engine(bot, user_id, reply, command, output_vid, compressed_vid, preset, progress, duration, datam, modes)
-                                                        if cresult[0]:
-                                                                if cresult[1]:
-                                                                        await clear_trash_list(trash_list)
-                                                                        await reply.edit("🔒Task Cancelled By User")
-                                                                else:
-                                                                        output_vid = compressed_vid
-                                                split_video = True
-                                                premium = False
-                                                if getsize(output_vid)>209715200:
-                                                        if split_video:
-                                                                await reply.edit("🪓Splitting Video")
-                                                                if not premium:
-                                                                        # split_size = 104857600 - 5000000
-                                                                        split_size = 209715200
-                                                                        await make_direc(Sdir)
-                                                                        await create_process_file(progress)
-                                                                        modes['process_type'] = 'Splitting'
-                                                                        datam = (file_name, '🪓Splitting Video', mptime)
-                                                                        sresult = await  split_video_file(bot, user_id, reply, split_size, Sdir, output_vid, file_name, progress, duration, datam, modes)
-                                                                        if sresult[0]:
-                                                                                if sresult[1]:
-                                                                                        await clear_trash_list(trash_list)
-                                                                                        await reply.edit("🔒Task Cancelled By User")
-                                                                                        return
-                                                                                else:
-                                                                                        trash_list = trash_list + sresult[2]
-                                                                                        final_video = sresult[2]
-                                                                        else:
-                                                                                final_video = [output_vid]
-                                                else:
-                                                        final_video = [output_vid]
-                                                if not custom_thumb:
-                                                        final_thumb = './thumb.jpg'
-                                                else:
-                                                        final_thumb = thumb_loc
                                                 if not select_stream:
                                                         cc = ''
                                                 else:
                                                         cc = f"✅Stream: {str(cstream)}"
-                                                datam = [file_name, '🔼Uploading Video', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
-                                                start_time = timex()
-                                                upload = await send_tg_video(bot, user_id, final_video, cc, duration, final_thumb, reply, start_time, datam, modes)
+                                                upload_tg = USER_DATA()[userx]['upload_tg']
+                                                if not USER_DATA()[userx]['rclone']:
+                                                        upload_tg = True
+                                                if not USER_DATA()[userx]['drive_name']:
+                                                        upload_tg = True
+                                                if upload_tg:
+                                                                final_video = [output_vid]
+                                                                split_video = USER_DATA()[userx]['split_video']
+                                                                use_premium = False
+                                                                if getsize(output_vid)>2097151000:
+                                                                        use_premium = True
+                                                                        if split_video:
+                                                                                        split_at = USER_DATA()[userx]['split']
+                                                                                        if split_at=='2GB':
+                                                                                                split_size = 2097151000
+                                                                                                use_premium = False
+                                                                                        else:
+                                                                                                split_size = 4194304000
+                                                                                        split_size = split_size - 5000000
+                                                                                        await reply.edit("🪓Splitting Video")
+                                                                                        await make_direc(Sdir)
+                                                                                        await create_process_file(progress)
+                                                                                        modes['process_type'] = 'Splitting'
+                                                                                        datam = (file_name, '🪓Splitting Video', mptime)
+                                                                                        sresult = await  split_video_file(bot, user_id, reply, split_size, Sdir, output_vid, file_name, progress, duration, datam, modes)
+                                                                                        if sresult[0]:
+                                                                                                if sresult[1]:
+                                                                                                        await clear_trash_list(trash_list)
+                                                                                                        await reply.edit("🔒Task Cancelled By User")
+                                                                                                        return
+                                                                                                else:
+                                                                                                        trash_list = trash_list + sresult[2]
+                                                                                                        final_video = sresult[2]
+                                                                if not custom_thumb:
+                                                                        final_thumb = './thumb.jpg'
+                                                                else:
+                                                                        final_thumb = thumb_loc
+                                                                datam = [file_name, '🔼Uploading Video', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
+                                                                start_time = timex()
+                                                                if not use_premium:
+                                                                        upload = await send_tg_video(bot, user_id, final_video, cc, duration, final_thumb, reply, start_time, datam, modes)
+                                                                else:
+                                                                        user_reply = await USER.send_message(chat_id=user_id, text=f"🔶File Size Greater Than 2GB, Using User Account To Upload.")
+                                                                        upload = await send_tg_video(USER, user_id, final_video, cc, duration, final_thumb, user_reply, start_time, datam, modes)
+                                                else:
+                                                        modes['process_type'] = 'Rclone Uploading'
+                                                        datam = [file_name, '❣Uploading To Drive', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
+                                                        r_config = f'./userdata/{str(userx)}_rclone.conf'
+                                                        drive_name = USER_DATA()[userx]['drive_name']
+                                                        command =  [ "rclone",
+                                                                                        "copy",
+                                                                                        f"--config={r_config}",
+                                                                                        f'{str(output_vid)}',
+                                                                                        f'{drive_name}:/',
+                                                                                        "-f",
+                                                                                        "- *.!qB",
+                                                                                        "--buffer-size=1M",
+                                                                                        "-P",
+                                                                                ]
+                                                        entName = escape(ename)
+                                                        search_command =  [
+                                                                        "rclone",
+                                                                        "lsjson",
+                                                                        f"--config={r_config}",
+                                                                        f'{drive_name}:/',
+                                                                        "--files-only",
+                                                                        "-f",
+                                                                        f"+ {entName}",
+                                                                        "-f",
+                                                                        "- *",
+                                                                ]
+                                                        upload = await upload_rclone(bot, user_id, message, command, output_vid, datam, modes, search_command)
+                                                        if upload[0]:
+                                                                if not upload[1]:
+                                                                        if upload[2]:
+                                                                                text = f"✅{file_name} Successfully Uploade To Drive\n\n⛓Link: `{upload[3]}`\n\n{cc}"
+                                                                        else:
+                                                                                text = f"✅{file_name} Successfully Uploade To Drive\n\n❗Failed To Get Link: `{str(upload[3])}`\n\n{cc}"
+                                                                        await bot.send_message(user_id, text)
                                                 check_data = [[process_id, get_master_process()]]
                                                 checker = await process_checker(check_data)
                                                 if not checker:
@@ -1132,6 +1233,43 @@ async def process(bot, message):
         return
 
 
+################test###########
+@Client.on_message(filters.command(["test"]))
+async def testm(client, message):
+        user_id = message.chat.id
+        userx = message.from_user.id
+        process_id = 123589378937
+        append_master_process(process_id)
+        modes = {'files': 1, 'process_id': process_id}
+        modes['process_type'] = 'Rclone Uploading'
+        file_name = "test.mkv"
+        datam = ['test.mkv', '🔼Uploading To Drive', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', timex()]
+        reply = await client.send_message(chat_id=user_id,
+                                                text=f"starting")
+        command =  [ "rclone",
+                                        "copy",
+                                        f"--config=rclone.conf",
+                                        f'./test.mkv',
+                                        'tdtest:/',
+                                        "-f",
+                                        "- *.!qB",
+                                        "--buffer-size=1M",
+                                        "-P",
+                                ]
+        entName = escape(file_name)
+        search_command =  [
+                        "rclone",
+                        "lsjson",
+                        "--config=rclone.conf",
+                        'tdtest:/',
+                        "--files-only",
+                        "-f",
+                        f"+ {entName}",
+                        "-f",
+                        "- *",
+                ]
+        upload = await upload_rclone(client, user_id, reply, command, 'test.mkv', datam, modes, search_command)
+
 
 ################Cancel Process###########
 @Client.on_message(filters.command(["cancel"]))
@@ -1185,17 +1323,13 @@ async def settings(client, message):
                 stream = USER_DATA()[userx]['stream']
                 split_video = USER_DATA()[userx]['split_video']
                 split = USER_DATA()[userx]['split']
+                upload_tg = USER_DATA()[userx]['upload_tg']
+                rclone = USER_DATA()[userx]['rclone']
+                drive_name = USER_DATA()[userx]['drive_name']
                 positions = {'Set Top Left':"position_5:5", "Set Top Right": "position_main_w-overlay_w-5:5", "Set Bottom Left": "position_5:main_h-overlay_h", "Set Bottom Right": "position_main_w-overlay_w-5:main_h-overlay_h-5"}
                 sizes = [5,7,10,13,15,17,20,25,30,35,40,45]
                 pkeys = list(positions.keys())
                 KeyBoard = []
-                watermark_path = f'./{str(userx)}_watermark.jpg'
-                watermark_check = await check_filex(watermark_path)
-                if watermark_check:
-                        key = [InlineKeyboardButton(f"🔶Watermark - Found✅🔶", callback_data="lol-water")]
-                else:
-                        key = [InlineKeyboardButton(f"🔶Watermark - Not Found❌🔶", callback_data="lol-water")]
-                KeyBoard.append(key)
                 KeyBoard.append([InlineKeyboardButton(f"🔶Watermark Position - {wpositions[watermark_position]}🔶", callback_data="lol-wposition")])
                 WP1 = []
                 WP2 = []
@@ -1348,6 +1482,127 @@ async def settings(client, message):
                     keyboard = InlineKeyboardButton(datam, callback_data=vlue)
                     st.append(keyboard)
                 KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🔶Upload On TG - {str(upload_tg)}🔶", callback_data="lol-sp")])
+                st = []
+                for x in streams:
+                    vlue = f"uploadtg_{str(x)}"
+                    if upload_tg!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                r_config = f'./userdata/{str(userx)}_rclone.conf'
+                if not exists(r_config):
+                        KeyBoard.append([InlineKeyboardButton(f"🔶Rclone Config Not Found🔶", callback_data="lol-rclonenotfound")])
+                else:
+                                try:
+                                        with open(r_config) as f:
+                                                rdata = f.readlines()
+                                        accounts = []
+                                        for line in rdata:
+                                                        line = line.strip()
+                                                        if line.startswith('[') and line.endswith(']'):
+                                                                accounts.append(line.replace('[', '').replace(']', ''))
+                                        st = []
+                                        if len(accounts)!=0:
+                                                for x in accounts:
+                                                        vlue = f"setrclone_{str(x)}"
+                                                        if drive_name!=x:
+                                                                datam = f"{str(x)}"
+                                                        else:
+                                                                datam = f"{str(x)} 🟢"
+                                                        keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                                                        st.append(keyboard)
+                                                KeyBoard.append([InlineKeyboardButton(f"🔶Current Rclone Account - {str(drive_name)}🔶", callback_data="lol-sp")])
+                                                KeyBoard.append(st)
+                                except Exception as e:
+                                        await client.send_message(user_id, f"❗Error While Getting Rclone Accounts\n\nError: {str(e)}")
+                await message.reply_text(
+                        text="Settings",
+                        disable_web_page_preview=True,
+                        reply_markup= InlineKeyboardMarkup(KeyBoard)
+                        )
+                return
+
+##############ENCODER################
+@Client.on_message(filters.command(["encoder"]))
+async def encoder(client, message):
+                user_id = message.chat.id
+                userx = message.from_user.id
+                if userx not in USER_DATA():
+                        await new_user(userx)
+                if userx not in sudo_users:
+                                await client.send_message(user_id, "❌Not Authorized")
+                                return
+                encode_watermark = USER_DATA()[userx]['watermark']['encode']
+                encode_muxer = USER_DATA()[userx]['muxer']['encode']
+                watermark_encoder = USER_DATA()[userx]['watermark']['encoder']
+                muxer_encoder = USER_DATA()[userx]['muxer']['encoder']
+                compress_encoder = USER_DATA()[userx]['compress']['encoder']
+                KeyBoard = []
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🛺Encode WaterMark Video - {str(encode_watermark)}🛺", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encodew_{str(x)}"
+                    if encode_watermark!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = ['libx265', 'libx264']
+                KeyBoard.append([InlineKeyboardButton(f"🔶WaterMark Encoder - {str(watermark_encoder)}🔶", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encoderw_{str(x)}"
+                    if watermark_encoder!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🎮Encode Muxer Video - {str(encode_muxer)}🎮", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encodem_{str(x)}"
+                    if encode_muxer!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = ['libx265', 'libx264']
+                KeyBoard.append([InlineKeyboardButton(f"🔶Muxer Encoder - {str(muxer_encoder)}🔶", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encoderm_{str(x)}"
+                    if muxer_encoder!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = ['libx265', 'libx264']
+                KeyBoard.append([InlineKeyboardButton(f"🏮Compress Encoder - {str(compress_encoder)}🏮", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encoderc_{str(x)}"
+                    if compress_encoder!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
                 await message.reply_text(
                         text="Settings",
                         disable_web_page_preview=True,
@@ -1368,8 +1623,22 @@ async def crf(client, message):
                 compress_crf = USER_DATA()[userx]['compress']['crf']
                 watermark_crf = USER_DATA()[userx]['watermark']['crf']
                 muxer_crf = USER_DATA()[userx]['muxer']['crf']
+                use_crf_watermark = USER_DATA()[userx]['watermark']['use_crf']
+                use_crf_muxer = USER_DATA()[userx]['muxer']['use_crf']
                 crfs = [0, 3, 6, 9, 12, 15, 18, 21, 23, 24, 27, 28, 30, 33, 36, 39, 42, 45, 48, 51]
                 KeyBoard = []
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🛺Use WaterMark CRF - {str(use_crf_watermark)}🛺", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"usecw_{str(x)}"
+                    if use_crf_watermark!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
                 KeyBoard.append([InlineKeyboardButton(f"🔶WaterMark CRF - {watermark_crf}🔶", callback_data="lol-wcrf")])
                 CCRP1 = []
                 CCRP2 = []
@@ -1400,6 +1669,18 @@ async def crf(client, message):
                 KeyBoard.append(CCRP3)
                 KeyBoard.append(CCRP4)
                 KeyBoard.append(CCRP5)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🎮Use Muxer CRF - {str(use_crf_muxer)}🎮", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"usecm_{str(x)}"
+                    if use_crf_muxer !=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
                 KeyBoard.append([InlineKeyboardButton(f"🔶Muxer CRF - {muxer_crf}🔶", callback_data="lol-mcrf")])
                 CCRP1 = []
                 CCRP2 = []
@@ -1466,7 +1747,6 @@ async def crf(client, message):
                         reply_markup= InlineKeyboardMarkup(KeyBoard)
                         )
                 return
-        
 
 ########Save Watermark#######
 @Client.on_message(filters.command('watermark'))
@@ -1492,6 +1772,51 @@ async def watermark(client, message):
                 await client.download_media(m, watermark_path)
                 await client.send_message(chat_id=user_id,
                                 text=f"✅Watermark Saved Successfully")
+        else:
+                await client.send_message(chat_id=user_id,
+                                        text=f"❗Invalid Media")
+    except Exception as e:
+                    print(e)
+                    await client.send_message(user_id, "🔃Tasked Has Been Cancelled.")
+    return
+
+
+
+########Save Rclone Config#######
+@Client.on_message(filters.command('addrclone'))
+async def addrclone(client, message):
+    user_id = message.chat.id
+    userx = message.from_user.id
+    if userx not in USER_DATA():
+            await new_user(userx)
+    if userx not in sudo_users:
+                await client.send_message(user_id, "❌Not Authorized")
+                return
+    r_config = f'./userdata/{str(userx)}_rclone.conf'
+    check_config = await check_filex(r_config)
+    if check_config:
+                text = f"🔶Config Already Present\n\nSend Me New Config To Replace.\n\n⌛Request TimeOut In 30 Secs"
+    else:
+            text = f"🔷Config Not Present\n\nSend Me Config To Save.\n\n⌛Request TimeOut In 30 Secs"
+    try:
+        ask = await client.ask(user_id, text, timeout=30, filters=(filters.document))
+        wt = ask.id
+        if ask.document and ask.document.mime_type.startswith("text/"):
+                m = await client.get_messages(user_id, wt, replies=0)
+                await client.download_media(m, r_config)
+                try:
+                        with open(r_config) as f:
+                                                rdata = f.readlines()
+                        accounts = []
+                        for line in rdata:
+                                        line = line.strip()
+                                        if line.startswith('[') and line.endswith(']'):
+                                                accounts.append(line.replace('[', '').replace(']', ''))
+                        await saveoptions(userx, 'drive_name', accounts[0])
+                except Exception as e:
+                        await client.send_message(user_id, str(e))
+                await client.send_message(chat_id=user_id,
+                                text=f"✅Config Saved Successfully")
         else:
                 await client.send_message(chat_id=user_id,
                                         text=f"❗Invalid Media")
