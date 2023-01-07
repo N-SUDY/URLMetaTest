@@ -1,7 +1,7 @@
 from pyrogram import Client,  filters
 from config import Config
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from helper_fns.helper import get_readable_time, USER_DATA, get_media, timex, delete_all, delete_trash, new_user, create_process_file, make_direc, durationx, clear_trash_list, check_filex, save_restart, process_checker, saveoptions
+from helper_fns.helper import get_readable_time, USER_DATA, get_media, timex, delete_all, delete_trash, new_user, create_process_file, make_direc, durationx, clear_trash_list, check_filex, save_restart, process_checker, saveoptions, get_human_size
 from config import botStartTime
 from string import ascii_lowercase, digits
 from random import choices
@@ -133,7 +133,11 @@ async def upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx,
                                                         if upload[0]:
                                                                 if not upload[1]:
                                                                         if upload[2]:
-                                                                                text = f"✅{file_name} Successfully Uploade To Drive\n\n⛓Link: `{upload[3]}`\n\n{cc}"
+                                                                                try:
+                                                                                        fisize =str(get_human_size(getsize(output_vid)))
+                                                                                except:
+                                                                                        fisize = "Unknown"
+                                                                                text = f"✅{file_name} Successfully Uploade To Drive\n\n⛓Link: `{upload[3]}`\n\n💽Size: {fisize}\n\n{cc}"
                                                                         else:
                                                                                 text = f"✅{file_name} Successfully Uploade To Drive\n\n❗Failed To Get Link: `{str(upload[3])}`\n\n{cc}"
                                                                         await bot.send_message(user_id, text)
