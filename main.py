@@ -17,8 +17,15 @@ app = Client(
 
 if __name__ == "__main__":
     app.start()
-    # User = Config.USER.start()
-    # first_name = User.get_me().first_name
+    if Config.USER:
+            User = Config.USER.start()
+            TGUserData = User.get_me()
+            first_name = TGUserData.first_name
+            if not TGUserData.is_premium:
+                print(f"⛔User Account {first_name} Don't Have Telegram Premium, 2GB Limit Will Be Used For Telegram Uploading.")
+            else:
+                print(f"💎Telegram Premium Found For  User {first_name}")
+            print(f'🔒User Session For {first_name} Started Successfully!🔒')
     uname = app.get_me().username
     try:
         if 'restart' in User_Data:
@@ -37,7 +44,6 @@ if __name__ == "__main__":
                     pass
     except Exception as e:
         print("🧩Error While Updating Restart Message:\n\n", e)
-    # print(f'🔒User Session For {first_name} Started Successfully!🔒')
     print(f'✅@{uname} Started Successfully!✅')
     print(f"⚡Bot By Sahil Nolia⚡")
     idle()

@@ -37,15 +37,19 @@ class Config:
     API_HASH = getenv("API_HASH","")
     TOKEN = getenv("TOKEN","")
     Session_String = getenv("Session_String","")
+    Use_Session_String = getenv("Use_Session_String","")
     SUDO_USERS = getenv("SUDO_USERS","")
     CREDIT = getenv("CREDIT","")
     MONGODB_URI = getenv("MONGODB_URI","")
     BOT_USERNAME = getenv("BOT_USERNAME","")
     CHANNEL_USERNAME = getenv("CHANNEL_USERNAME", "")
     User_Data = get_mongo_data(MONGODB_URI, BOT_USERNAME, CREDIT, "User_Data")
-    USER = Client(
-			name = "User_BoT",
-			session_string = Session_String,
-			api_id = API_ID,
-			api_hash = API_HASH
-		)
+    if Use_Session_String=="True":
+        USER = Client(
+          name = "User_BoT",
+          session_string = Session_String,
+          api_id = API_ID,
+          api_hash = API_HASH
+        )
+    else:
+      USER = False

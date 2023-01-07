@@ -3,7 +3,6 @@ from config import Config
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from helper_fns.helper import get_readable_time, USER_DATA, get_media, timex, delete_all, delete_trash, new_user, create_process_file, make_direc, durationx, clear_trash_list, check_filex, save_restart, process_checker, saveoptions
 from config import botStartTime
-from helper_fns.watermark import vidmarkx, hardmux_vidx, softmux_vidx, softremove_vidx
 from string import ascii_lowercase, digits
 from random import choices
 from asyncio import sleep as asynciosleep
@@ -18,6 +17,7 @@ from json import loads
 from math import ceil
 from os.path import getsize, splitext, join, exists
 from re import escape
+from datetime import datetime
 
 
 
@@ -98,6 +98,48 @@ async def download_tg_file(bot, m, dl_loc, reply, start_time, datam, modes):
                                 except Exception as e:
                                                 print("❌Downloading Error\n", e, datam[0])
                                                 return [False, e]
+                                        
+###########Upload Drve#############
+
+
+async def upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx, r_config, output_vid, ename):
+                                try:
+                                                        modes['process_type'] = 'Rclone Uploading'
+                                                        datam = [file_name, '❣Uploading To Drive', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
+                                                        drive_name = USER_DATA()[userx]['drive_name']
+                                                        command =  [ "rclone",
+                                                                                        "copy",
+                                                                                        f"--config={r_config}",
+                                                                                        f'{str(output_vid)}',
+                                                                                        f'{drive_name}:/',
+                                                                                        "-f",
+                                                                                        "- *.!qB",
+                                                                                        "--buffer-size=1M",
+                                                                                        "-P",
+                                                                                ]
+                                                        entName = escape(ename)
+                                                        search_command =  [
+                                                                        "rclone",
+                                                                        "lsjson",
+                                                                        f"--config={r_config}",
+                                                                        f'{drive_name}:/',
+                                                                        "--files-only",
+                                                                        "-f",
+                                                                        f"+ {entName}",
+                                                                        "-f",
+                                                                        "- *",
+                                                                ]
+                                                        upload = await upload_rclone(bot, user_id, reply, command, output_vid, datam, modes, search_command)
+                                                        if upload[0]:
+                                                                if not upload[1]:
+                                                                        if upload[2]:
+                                                                                text = f"✅{file_name} Successfully Uploade To Drive\n\n⛓Link: `{upload[3]}`\n\n{cc}"
+                                                                        else:
+                                                                                text = f"✅{file_name} Successfully Uploade To Drive\n\n❗Failed To Get Link: `{str(upload[3])}`\n\n{cc}"
+                                                                        await bot.send_message(user_id, text)
+                                except Exception as e:
+                                        await bot.send_message(user_id, f"❌Error While Uploading To Drive\n\n{str(e)}")
+                                return
 
 ###########Split File##############
 async def split_video_file(bot, user_id, reply, split_size, dirpath, file, file_name, progress, duration, datam, modes):
@@ -241,6 +283,8 @@ async def processor(bot, message, muxing_type):
                 for ele in punc:
                         if ele in file_name:
                                 file_name = file_name.replace(ele, '')
+                date_now = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+                file_name = f'{str(date_now)} {str(file_name)}'
                 dl_loc = f'{Ddir}/{str(userx)}_{str(file_name)}'
                 start_time = timex()
                 modes = {'files': 1, 'process_id': process_id}
@@ -343,7 +387,7 @@ async def processor(bot, message, muxing_type):
                                         if use_crf:
                                                 modes['crf'] = watermark_crf
                                         else:
-                                                modes['crf'] = 'Off'
+                                                modes['crf'] = 'False'
                                         watermark_path = f'./{str(userx)}_watermark.jpg'
                                         process_name = '🛺Adding Watermark'
                                         command = ["ffmpeg", "-hide_banner", "-progress", progress, "-i", the_media, "-i", watermark_path, "-map", f"0:v", "-map", f"{str(map)}", "-map", f"0:s",
@@ -372,7 +416,7 @@ async def processor(bot, message, muxing_type):
                                         if use_crf:
                                                 modes['crf'] = muxer_crf
                                         else:
-                                                modes['crf'] = 'Off'
+                                                modes['crf'] = 'False'
                                         encode = USER_DATA()[userx]['muxer']['encode']
                                         process_name = '🎮HardMuxing Subtitles'
                                         command = ['ffmpeg','-hide_banner',
@@ -416,7 +460,7 @@ async def processor(bot, message, muxing_type):
                                                 if use_crf:
                                                         modes['crf'] = muxer_crf
                                                 else:
-                                                        modes['crf'] = 'Off'
+                                                        modes['crf'] = 'False'
                                                 encoder = USER_DATA()[userx]['muxer']['encoder']
                                                 modes['encoder'] = encoder
                                                 if use_crf:
@@ -454,7 +498,7 @@ async def processor(bot, message, muxing_type):
                                                 if use_crf:
                                                         modes['crf'] = muxer_crf
                                                 else:
-                                                        modes['crf'] = 'Off'
+                                                        modes['crf'] = 'False'
                                                 encoder = USER_DATA()[userx]['muxer']['encoder']
                                                 modes['encoder'] = encoder
                                                 if use_crf:
@@ -507,84 +551,86 @@ async def processor(bot, message, muxing_type):
                                                 else:
                                                         cc = f"✅Stream: {str(cstream)}"
                                                 upload_tg = USER_DATA()[userx]['upload_tg']
-                                                if not USER_DATA()[userx]['rclone']:
+                                                r_config = f'./userdata/{str(userx)}_rclone.conf'
+                                                check_config = await check_filex(r_config)
+                                                if not check_config:
                                                         upload_tg = True
                                                 if not USER_DATA()[userx]['drive_name']:
                                                         upload_tg = True
                                                 if upload_tg:
                                                                 final_video = [output_vid]
+                                                                final_size = getsize(output_vid)
                                                                 split_video = USER_DATA()[userx]['split_video']
                                                                 use_premium = False
-                                                                if getsize(output_vid)>2097151000:
-                                                                        use_premium = True
+                                                                if final_size>2097151000:
                                                                         if split_video:
                                                                                         split_at = USER_DATA()[userx]['split']
                                                                                         if split_at=='2GB':
                                                                                                 split_size = 2097151000
-                                                                                                use_premium = False
                                                                                         else:
-                                                                                                split_size = 4194304000
-                                                                                        split_size = split_size - 5000000
-                                                                                        await reply.edit("🪓Splitting Video")
-                                                                                        await make_direc(Sdir)
-                                                                                        await create_process_file(progress)
-                                                                                        modes['process_type'] = 'Splitting'
-                                                                                        datam = (file_name, '🪓Splitting Video', mptime)
-                                                                                        sresult = await  split_video_file(bot, user_id, reply, split_size, Sdir, output_vid, file_name, progress, duration, datam, modes)
-                                                                                        if sresult[0]:
-                                                                                                if sresult[1]:
-                                                                                                        await clear_trash_list(trash_list)
-                                                                                                        await reply.edit("🔒Task Cancelled By User")
-                                                                                                        return
+                                                                                                if USER:
+                                                                                                        try:
+                                                                                                                premium = USER.get_me().is_premium
+                                                                                                                if premium:
+                                                                                                                        use_premium = True
+                                                                                                                        split_size = 4194304000
+                                                                                                                else:
+                                                                                                                        split_size = 2097151000
+                                                                                                        except Exception as e:
+                                                                                                                print(e)
+                                                                                                                split_size = 2097151000
                                                                                                 else:
-                                                                                                        trash_list = trash_list + sresult[2]
-                                                                                                        final_video = sresult[2]
+                                                                                                        split_size = 2097151000
+                                                                                        split_size = split_size - 5000000
+                                                                                        if use_premium:
+                                                                                                if getsize(output_vid)<split_size:
+                                                                                                        split_video = False
+                                                                                        if split_video:
+                                                                                                await reply.edit("🪓Splitting Video")
+                                                                                                await make_direc(Sdir)
+                                                                                                await create_process_file(progress)
+                                                                                                modes['process_type'] = 'Splitting'
+                                                                                                datam = (file_name, '🪓Splitting Video', mptime)
+                                                                                                sresult = await  split_video_file(bot, user_id, reply, split_size, Sdir, output_vid, file_name, progress, duration, datam, modes)
+                                                                                                if sresult[0]:
+                                                                                                        if sresult[1]:
+                                                                                                                await clear_trash_list(trash_list)
+                                                                                                                await reply.edit("🔒Task Cancelled By User")
+                                                                                                                return
+                                                                                                        else:
+                                                                                                                trash_list = trash_list + sresult[2]
+                                                                                                                final_video = sresult[2]
                                                                 if not custom_thumb:
                                                                         final_thumb = './thumb.jpg'
                                                                 else:
                                                                         final_thumb = thumb_loc
                                                                 datam = [file_name, '🔼Uploading Video', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
                                                                 start_time = timex()
-                                                                if not use_premium:
-                                                                        upload = await send_tg_video(bot, user_id, final_video, cc, duration, final_thumb, reply, start_time, datam, modes)
-                                                                else:
-                                                                        user_reply = await USER.send_message(chat_id=user_id, text=f"🔶File Size Greater Than 2GB, Using User Account To Upload.")
-                                                                        upload = await send_tg_video(USER, user_id, final_video, cc, duration, final_thumb, user_reply, start_time, datam, modes)
-                                                else:
-                                                        modes['process_type'] = 'Rclone Uploading'
-                                                        datam = [file_name, '❣Uploading To Drive', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
-                                                        r_config = f'./userdata/{str(userx)}_rclone.conf'
-                                                        drive_name = USER_DATA()[userx]['drive_name']
-                                                        command =  [ "rclone",
-                                                                                        "copy",
-                                                                                        f"--config={r_config}",
-                                                                                        f'{str(output_vid)}',
-                                                                                        f'{drive_name}:/',
-                                                                                        "-f",
-                                                                                        "- *.!qB",
-                                                                                        "--buffer-size=1M",
-                                                                                        "-P",
-                                                                                ]
-                                                        entName = escape(ename)
-                                                        search_command =  [
-                                                                        "rclone",
-                                                                        "lsjson",
-                                                                        f"--config={r_config}",
-                                                                        f'{drive_name}:/',
-                                                                        "--files-only",
-                                                                        "-f",
-                                                                        f"+ {entName}",
-                                                                        "-f",
-                                                                        "- *",
-                                                                ]
-                                                        upload = await upload_rclone(bot, user_id, message, command, output_vid, datam, modes, search_command)
-                                                        if upload[0]:
-                                                                if not upload[1]:
-                                                                        if upload[2]:
-                                                                                text = f"✅{file_name} Successfully Uploade To Drive\n\n⛓Link: `{upload[3]}`\n\n{cc}"
+                                                                if split_video:
+                                                                        if not use_premium:
+                                                                                upload = await send_tg_video(bot, user_id, final_video, cc, duration, final_thumb, reply, start_time, datam, modes)
                                                                         else:
-                                                                                text = f"✅{file_name} Successfully Uploade To Drive\n\n❗Failed To Get Link: `{str(upload[3])}`\n\n{cc}"
-                                                                        await bot.send_message(user_id, text)
+                                                                                user_reply = await USER.send_message(chat_id=user_id, text=f"🔶File Size Greater Than 2GB, Using User Account To Upload.")
+                                                                                upload = await send_tg_video(USER, user_id, final_video, cc, duration, final_thumb, user_reply, start_time, datam, modes)
+                                                                else:
+                                                                        if final_size<2097151000:
+                                                                                upload = await send_tg_video(bot, user_id, final_video, cc, duration, final_thumb, reply, start_time, datam, modes)
+                                                                        else:
+                                                                                if final_size>4194304000:
+                                                                                        if check_config:
+                                                                                                upload = await upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx, r_config, output_vid, ename)
+                                                                                        else:
+                                                                                                await bot.send_message(user_id, "❗Can't Upload! File Size Greater Than 4GB and No Rclone Config Found")
+                                                                                else:
+                                                                                        if USER:
+                                                                                                if USER.get_me().is_premium:
+                                                                                                        upload = await send_tg_video(USER, user_id, final_video, cc, duration, final_thumb, user_reply, start_time, datam, modes)
+                                                                                                else:
+                                                                                                        await bot.send_message(user_id, "❗Failed to upload video as file size is greater than 2gb and user account don't have telegram premium.")
+                                                                                        else:
+                                                                                                await bot.send_message(user_id, "❗Failed to upload video as file size is greater than 2gb.")
+                                                else:
+                                                        upload = await upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx, r_config, output_vid, ename)
                                                 check_data = [[process_id, get_master_process()]]
                                                 checker = await process_checker(check_data)
                                                 if not checker:
@@ -647,102 +693,102 @@ async def timecmd(client, message):
         return
 
 
-##############Req######################
-@Client.on_message(filters.command(["add"]))
-async def add(client, message):
-    user_id = message.chat.id
-    userx = message.from_user.id
-    if userx not in USER_DATA():
-            await new_user(userx)
-    if userx not in sudo_users:
-                await client.send_message(user_id, "❌Not Authorized")
-                return
-    vdata = {}
-    q = 1
-    while True:
-            data = {}
-            try:
-                        ask = await client.ask(user_id, f'*️⃣ Send Me Video No. {str(q)}\n\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.video | filters.text))
-                        video = ask.id
-                        try:
-                            if not ask.video or ask.document:
-                                    if ask.text == "stop":
-                                            await ask.request.delete()
-                                            break
-                        except:
-                            pass
-                        if ask.video or ask.document:
-                            file_type = ask.video or ask.document
-                            if file_type.mime_type.startswith("video/"):
-                                data['chat'] = user_id
-                                data['vid'] =  video
-                        else:
-                            continue
-                        ask = await client.ask(user_id, f'*️⃣ Send Me Thumbnail For Video No. {str(q)}\n\n🔷Send `pass` for default Thumbnail\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.photo | filters.text))
-                        thumb = ask.id
-                        try:
-                            if not ask.photo or ask.document:
-                                    if ask.text == "stop":
-                                            await ask.request.delete()
-                                            break
-                                    else:
-                                        data['thumb'] = False
-                        except:
-                            pass
-                        if ask.photo or (ask.document and ask.document.mime_type.startswith("image/")):
-                                data['thumb'] = True
-                                data['tid'] =  thumb
-                        else:
-                            data['thumb'] = False
-                        ask = await client.ask(user_id, f'*️⃣ If You Want To Remux Subitle To This Video, Send Subtitle File or If  You Dont Want To Remux Send `pass`\n\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.text))
-                        sub = ask.id
-                        try:
-                            if not ask.document:
-                                    if ask.text == "stop":
-                                            await ask.request.delete()
-                                            break
-                                    else:
-                                            data['sub'] = False
-                                            vdata[q] = data
-                                            q+=1
-                                            continue
-                        except:
-                            pass
-                        if ask.document:
-                            file_type = ask.document
-                            if not file_type.mime_type.startswith("video/"):
-                                ask = await client.ask(user_id, f'*️⃣ Send Remux Type\n\n`softremove`  ,   `softmux`    ,   `hardmux`\n\nIf  You Dont Want To Remux Send `pass`\n\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.text)
-                                valid = ['softremove', 'softmux', 'hardmux']
-                                if ask.text == "stop":
-                                            await ask.request.delete()
-                                            break
-                                if ask.text == "pass":
-                                            data['sub'] = False
-                                if ask.text in valid:
-                                        data['sub'] = True
-                                        data['sid'] = sub
-                                        data['smode'] = ask.text
-                                else:
-                                    data['sub'] = False
-                        else:
-                            data['sub'] = False
-                        vdata[q] = data
-                        q+=1
-            except Exception as e:
-                    print(e)
-                    await client.send_message(user_id, "🔃Tasked Has Been Cancelled.")
-                    break
-            await ask.request.delete()
-    caption=f"🧩Total Files: {str(q-1)}"
-    zxx = open('Nik66Bots.txt', "w", encoding="utf-8")
-    zxx.write(str(vdata))
-    zxx.close()
-    await client.send_document(chat_id=user_id, document='Nik66Bots.txt', caption=caption)
-    return
+# ##############Req######################
+# @Client.on_message(filters.command(["add"]))
+# async def add(client, message):
+#     user_id = message.chat.id
+#     userx = message.from_user.id
+#     if userx not in USER_DATA():
+#             await new_user(userx)
+#     if userx not in sudo_users:
+#                 await client.send_message(user_id, "❌Not Authorized")
+#                 return
+#     vdata = {}
+#     q = 1
+#     while True:
+#             data = {}
+#             try:
+#                         ask = await client.ask(user_id, f'*️⃣ Send Me Video No. {str(q)}\n\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.video | filters.text))
+#                         video = ask.id
+#                         try:
+#                             if not ask.video or ask.document:
+#                                     if ask.text == "stop":
+#                                             await ask.request.delete()
+#                                             break
+#                         except:
+#                             pass
+#                         if ask.video or ask.document:
+#                             file_type = ask.video or ask.document
+#                             if file_type.mime_type.startswith("video/"):
+#                                 data['chat'] = user_id
+#                                 data['vid'] =  video
+#                         else:
+#                             continue
+#                         ask = await client.ask(user_id, f'*️⃣ Send Me Thumbnail For Video No. {str(q)}\n\n🔷Send `pass` for default Thumbnail\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.photo | filters.text))
+#                         thumb = ask.id
+#                         try:
+#                             if not ask.photo or ask.document:
+#                                     if ask.text == "stop":
+#                                             await ask.request.delete()
+#                                             break
+#                                     else:
+#                                         data['thumb'] = False
+#                         except:
+#                             pass
+#                         if ask.photo or (ask.document and ask.document.mime_type.startswith("image/")):
+#                                 data['thumb'] = True
+#                                 data['tid'] =  thumb
+#                         else:
+#                             data['thumb'] = False
+#                         ask = await client.ask(user_id, f'*️⃣ If You Want To Remux Subitle To This Video, Send Subtitle File or If  You Dont Want To Remux Send `pass`\n\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.text))
+#                         sub = ask.id
+#                         try:
+#                             if not ask.document:
+#                                     if ask.text == "stop":
+#                                             await ask.request.delete()
+#                                             break
+#                                     else:
+#                                             data['sub'] = False
+#                                             vdata[q] = data
+#                                             q+=1
+#                                             continue
+#                         except:
+#                             pass
+#                         if ask.document:
+#                             file_type = ask.document
+#                             if not file_type.mime_type.startswith("video/"):
+#                                 ask = await client.ask(user_id, f'*️⃣ Send Remux Type\n\n`softremove`  ,   `softmux`    ,   `hardmux`\n\nIf  You Dont Want To Remux Send `pass`\n\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.text)
+#                                 valid = ['softremove', 'softmux', 'hardmux']
+#                                 if ask.text == "stop":
+#                                             await ask.request.delete()
+#                                             break
+#                                 if ask.text == "pass":
+#                                             data['sub'] = False
+#                                 if ask.text in valid:
+#                                         data['sub'] = True
+#                                         data['sid'] = sub
+#                                         data['smode'] = ask.text
+#                                 else:
+#                                     data['sub'] = False
+#                         else:
+#                             data['sub'] = False
+#                         vdata[q] = data
+#                         q+=1
+#             except Exception as e:
+#                     print(e)
+#                     await client.send_message(user_id, "🔃Tasked Has Been Cancelled.")
+#                     break
+#             await ask.request.delete()
+#     caption=f"🧩Total Files: {str(q-1)}"
+#     zxx = open('Nik66Bots.txt', "w", encoding="utf-8")
+#     zxx.write(str(vdata))
+#     zxx.close()
+#     await client.send_document(chat_id=user_id, document='Nik66Bots.txt', caption=caption)
+#     return
 
 
 ##########WaterMark Adder############
-@Client.on_message(filters.command('addwatermark'))
+@Client.on_message(filters.command('watermark'))
 async def addwatermark(bot, message):
         user_id = message.chat.id
         userx = message.from_user.id
@@ -751,7 +797,7 @@ async def addwatermark(bot, message):
         watermark_path = f'./{str(userx)}_watermark.jpg'
         watermark_check = await check_filex(watermark_path)
         if not watermark_check:
-                await bot.send_message(user_id, "❗No Watermark Found, Save Watermark First With /watermark Command.")
+                await bot.send_message(user_id, "❗No Watermark Found, Save Watermark First With /savewatermark Command.")
                 return
         if userx in sudo_users:
                 muxing_type = 'Watermark'
@@ -823,452 +869,392 @@ async def compressvideo(bot, message):
                 return
 
 
-############Split###############
-@Client.on_message(filters.command('split'))
-async def split(bot, message):
-        user_id = message.chat.id
-        userx = message.from_user.id
-        if userx not in USER_DATA():
-                await new_user(userx)
-        if userx in sudo_users:
-                reply = await bot.send_message(user_id, "splitting video")
-                out_files = await split('o.mkv')
-                mptime = timex()
-                modes = {'files': 1, 'process_id': '123'}
-                for file in out_files:
-                        cc = f"{str(file)}"
-                        duration = durationx(file)
-                        final_thumb = "./thumb.jpg"
-                        start_time = timex()
-                        datam = (file, '🔼Uploading Video', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime)
-                        upload = await send_tg_video(bot, user_id, file, cc, duration, final_thumb, reply, start_time, datam, modes)
-        else:
-                await bot.send_message(user_id, "❌Not Authorized")
-                return
-
 ###############start remux##############
 
-@Client.on_message(filters.command('process'))
-async def process(bot, message):
-        user_id = message.chat.id
-        userx = message.from_user.id
-        if userx not in USER_DATA():
-                await new_user(userx)
-        watermark_path = f'./{str(userx)}_watermark.jpg'
-        watermark_check = await check_filex(watermark_path)
-        if not watermark_check:
-                await bot.send_message(user_id, "❗No Watermark Found, Save Watermark First With /watermark Command.")
-                return
-        if userx in sudo_users:
-                try:
-                                file_id = int(message.reply_to_message.id)
-                                filetype = message.reply_to_message.document
-                except:
-                        try:
-                                ask = await bot.ask(user_id, '*️⃣ Send Bot Dict File', timeout=60, filters=filters.document)
-                                filetype = ask.document
-                        except:
-                                await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
-                                return
-                        file_id = ask.id
-        else:
-                await bot.send_message(user_id, "❌Not Authorized")
-                return
-        try:
-                file_size = filetype.file_size
-                if int(file_size)>512000:
-                        await bot.send_message(chat_id=user_id, text="❌Invalid File")
-                        return
-        except Exception as e:
-            print(e)
-            await bot.send_message(chat_id=user_id,
-                text=f"❗Error: {str(e)}")
-            return
-        m = await bot.get_messages(user_id, file_id, replies=0)
-        DEFAULT_DOWNLOAD_DIR = f"./{str(user_id)}_ongoing_dict.txt"
-        await bot.download_media(m, DEFAULT_DOWNLOAD_DIR)
-        users_open1 = open(DEFAULT_DOWNLOAD_DIR, 'r', encoding="utf-8")
-        dic = eval(str(users_open1.read()))
-        users_open1.close()
-        dvalue = 'File'
-        dvaluex = 'Files'
-        try:
-                m0 = await bot.ask(user_id, f'*️⃣ {str(len(dic))} {dvaluex} Found. Where You Want To Start Process Out Of These {str(len(dic))} {dvaluex}❔\n\n🔘Quick Notes:\n\n🔸Send 3-8 If You Want To Process From {dvalue} No. 3 To {dvalue} No. 8\n🔸Send 3- If You Want To Process Only {dvalue} No. 3\n🔸Send 3 If You Want To Process From {dvalue} No. 3 To Last {dvalue}', timeout=90, filters=filters.text)
-                m0_text = m0.text
-                if '-' in m0_text:
-                        limiter = m0_text.split("-")
-                        if len(limiter)>2:
-                                await bot.send_message(user_id, "❗Invalied Values.")
-                                return
-                        try:
-                                limit = int(limiter[0]) - 1
-                                if len(limiter[1])==0:
-                                        limit_to = int(limiter[0])
-                                else:
-                                        limit_to = int(limiter[1])
-                        except:
-                                await bot.send_message(user_id, "❗Invalied Values.")
-                                return
-                else:        
-                        try:
-                                limit = int(m0_text) - 1
-                                if limit<0:
-                                        limit = 0
-                                limit_to = len(dic)
-                        except ValueError:
-                                await m.reply('❗Error: Value Must Be Numerical.')
-                                return
-        except:
-                await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
-                return
-        if limit_to>len(dic):
-                await bot.send_message(user_id, "❗Invalied Values.")
-                return
+# @Client.on_message(filters.command('process'))
+# async def process(bot, message):
+#         user_id = message.chat.id
+#         userx = message.from_user.id
+#         if userx not in USER_DATA():
+#                 await new_user(userx)
+#         watermark_path = f'./{str(userx)}_watermark.jpg'
+#         watermark_check = await check_filex(watermark_path)
+#         if not watermark_check:
+#                 await bot.send_message(user_id, "❗No Watermark Found, Save Watermark First With /savewatermark Command.")
+#                 return
+#         if userx in sudo_users:
+#                 try:
+#                                 file_id = int(message.reply_to_message.id)
+#                                 filetype = message.reply_to_message.document
+#                 except:
+#                         try:
+#                                 ask = await bot.ask(user_id, '*️⃣ Send Bot Dict File', timeout=60, filters=filters.document)
+#                                 filetype = ask.document
+#                         except:
+#                                 await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
+#                                 return
+#                         file_id = ask.id
+#         else:
+#                 await bot.send_message(user_id, "❌Not Authorized")
+#                 return
+#         try:
+#                 file_size = filetype.file_size
+#                 if int(file_size)>512000:
+#                         await bot.send_message(chat_id=user_id, text="❌Invalid File")
+#                         return
+#         except Exception as e:
+#             print(e)
+#             await bot.send_message(chat_id=user_id,
+#                 text=f"❗Error: {str(e)}")
+#             return
+#         m = await bot.get_messages(user_id, file_id, replies=0)
+#         DEFAULT_DOWNLOAD_DIR = f"./{str(user_id)}_ongoing_dict.txt"
+#         await bot.download_media(m, DEFAULT_DOWNLOAD_DIR)
+#         users_open1 = open(DEFAULT_DOWNLOAD_DIR, 'r', encoding="utf-8")
+#         dic = eval(str(users_open1.read()))
+#         users_open1.close()
+#         dvalue = 'File'
+#         dvaluex = 'Files'
+#         try:
+#                 m0 = await bot.ask(user_id, f'*️⃣ {str(len(dic))} {dvaluex} Found. Where You Want To Start Process Out Of These {str(len(dic))} {dvaluex}❔\n\n🔘Quick Notes:\n\n🔸Send 3-8 If You Want To Process From {dvalue} No. 3 To {dvalue} No. 8\n🔸Send 3- If You Want To Process Only {dvalue} No. 3\n🔸Send 3 If You Want To Process From {dvalue} No. 3 To Last {dvalue}', timeout=90, filters=filters.text)
+#                 m0_text = m0.text
+#                 if '-' in m0_text:
+#                         limiter = m0_text.split("-")
+#                         if len(limiter)>2:
+#                                 await bot.send_message(user_id, "❗Invalied Values.")
+#                                 return
+#                         try:
+#                                 limit = int(limiter[0]) - 1
+#                                 if len(limiter[1])==0:
+#                                         limit_to = int(limiter[0])
+#                                 else:
+#                                         limit_to = int(limiter[1])
+#                         except:
+#                                 await bot.send_message(user_id, "❗Invalied Values.")
+#                                 return
+#                 else:        
+#                         try:
+#                                 limit = int(m0_text) - 1
+#                                 if limit<0:
+#                                         limit = 0
+#                                 limit_to = len(dic)
+#                         except ValueError:
+#                                 await m.reply('❗Error: Value Must Be Numerical.')
+#                                 return
+#         except:
+#                 await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
+#                 return
+#         if limit_to>len(dic):
+#                 await bot.send_message(user_id, "❗Invalied Values.")
+#                 return
         
-        countx = 1
-        failed = {}
-        wfailed = {}
-        mfailed = {}
-        cancelled = {}
-        process_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
-        append_master_process(process_id)
-        mtime = timex()
-        Ddir = f'./{str(userx)}_RAW'
-        Wdir = f'./{str(userx)}_WORKING'
-        await make_direc(Ddir)
-        await make_direc(Wdir)
-        MCancel = False
-        SCancel = False
-        for i in range(limit, limit_to):
-                trash_list = []
-                if process_id in get_master_process():
-                                stime = timex()
-                                send_file = False
-                                subprocess_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
-                                append_sub_process(subprocess_id)
-                                remnx = str((limit_to-limit)-countx)
-                                value = i+1
-                                data = dic[value]
-                                vid = data['vid']
-                                chat_id = data['chat']
-                                m = await bot.get_messages(chat_id, vid, replies=0)
-                                media = get_media(m)
-                                file_name = media.file_name.replace(' ', '')
-                                dl_loc = f'{Ddir}/{str(userx)}_{str(file_name)}'
-                                start_time = timex()
-                                datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔽Downloading Video', '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
-                                reply = await bot.send_message(chat_id=user_id,
-                                                        text=f"🔽Starting Download ({str(countx)}/{str(limit_to-limit)})\n🎟️File: {file_name}\n🧶Remaining: {str(remnx)}")
-                                the_media = None
-                                try:
-                                        the_media = await bot.download_media(
-                                                        message=m,
-                                                        file_name=dl_loc,
-                                                        progress=progress_bar,
-                                                        progress_args=(reply,start_time, bot, subprocess_id, process_id, *datam)
-                                                )
-                                except FloodWait as e:
-                                                await asynciosleep(int(e.value)+10)
-                                                the_media = await bot.download_media(
-                                                        message=m,
-                                                        file_name=dl_loc,
-                                                        progress=progress_bar,
-                                                        progress_args=(reply,start_time, bot, subprocess_id, process_id, *datam)
-                                                )
-                                except Exception as e:
-                                                await bot.send_message(chat_id=user_id,
-                                                        text=f"❗Unable to Download Media!\n\n{str(e)}\n\n{str(data)}")
-                                                await delete_trash(the_media)
-                                                failed[value] = data
-                                                try:
-                                                        await reply.delete()
-                                                except:
-                                                        pass
-                                                continue
-                                trash_list.append(the_media)
-                                if subprocess_id not in get_sub_process():
-                                                                                SCancel = True
-                                                                                cancelled[value] = data
-                                                                                await clear_trash_list(trash_list)
-                                                                                try:
-                                                                                        await reply.delete()
-                                                                                except:
-                                                                                        pass
-                                                                                await bot.send_message(chat_id=user_id, text=f"🔒Video Skipped By User\n\n{str(file_name)}")
-                                                                                continue
-                                if process_id not in get_master_process():
-                                                                                MCancel = True
-                                                                                await clear_trash_list(trash_list)
-                                                                                try:
-                                                                                        await reply.delete()
-                                                                                except:
-                                                                                        pass
-                                                                                break
-                                if the_media is None:
-                                        await delete_trash(the_media)
-                                        await bot.send_message(chat_id=user_id,
-                                                        text=f"❗Unable to Download Media!")
-                                        failed[value] = data
-                                        try:
-                                                        await reply.delete()
-                                        except:
-                                                        pass
-                                        continue
-                                duration = 0
-                                try:
-                                        duration = int(durationx(the_media))
-                                except:
-                                        pass
-                                output_vid = f"{Wdir}/{str(userx)}_{str(file_name)}"
-                                progress = f"{Wdir}/{str(userx)}_{str(file_name)}_progress.txt"
-                                await create_process_file(progress)
-                                await delete_trash(output_vid)
-                                preset = USER_DATA()[userx]['watermark']['preset']
-                                watermark_position = USER_DATA()[userx]['watermark']['position']
-                                watermark_size = USER_DATA()[userx]['watermark']['size']
-                                datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🛺Adding Watermark', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
-                                output_vid_res = await vidmarkx(the_media, reply, progress, watermark_path, output_vid, duration, preset, watermark_position, watermark_size, datam,subprocess_id, process_id)
-                                trash_list.append(output_vid)
-                                await delete_trash(progress)
-                                if output_vid_res[0]:
-                                        if output_vid_res[1]:
-                                                if subprocess_id not in get_sub_process():
-                                                                SCancel = True
-                                                                cancelled[value] = data
-                                                                await clear_trash_list(trash_list)
-                                                                try:
-                                                                                        await reply.delete()
-                                                                except:
-                                                                                        pass
-                                                                await bot.send_message(chat_id=user_id, text=f"🔒Video Skipped By User\n\n{str(file_name)}")
-                                                                continue
-                                                if process_id not in get_master_process():
-                                                                MCancel = True
-                                                                await clear_trash_list(trash_list)
-                                                                try:
-                                                                        await reply.delete()
-                                                                except:
-                                                                        pass
-                                                                break
-                                        send_file = True
-                                        final_video = output_vid
-                                        WP = True
-                                        cc = f"{str(file_name)}\n\n✅watermark"
-                                else:
-                                        captionx=f"{str(file_name)}\n\n❌Failed To Add Watermark"
-                                        wfail_file = f'{str(file_name)}_wlog.txt'
-                                        zxx = open(wfail_file, "w", encoding="utf-8")
-                                        zxx.write(str(output_vid_res[1]))
-                                        zxx.close()
-                                        await bot.send_document(chat_id=user_id, document=wfail_file, caption=captionx)
-                                        print("⛔Watermark Adding Failed")
-                                        await delete_trash(wfail_file)
-                                        wfailed[value] = data
-                                        output_vid = the_media
-                                        WP = False
-                                        cc = f"{str(file_name)}\n\n❌watermark"
-                                if data['sub']:
-                                        print("🔶Muxing Found")
-                                        sid = data['sid']
-                                        subm = await bot.get_messages(chat_id, sid, replies=0)
-                                        media = get_media(subm)
-                                        sub_name = media.file_name.replace(' ', '')
-                                        sub_loc = f'{Ddir}/{str(userx)}_{str(sub_name)}'
-                                        start_time = timex()
-                                        datam = (sub_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔽Downloading Subtitle',  '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
-                                        subtitle = await bot.download_media(
-                                                        message=subm,
-                                                        file_name=sub_loc,
-                                                        progress=progress_bar,
-                                                        progress_args=(reply,start_time, bot, subprocess_id, process_id, *datam)
-                                                )
-                                        if subtitle is None:
-                                                await delete_trash(subtitle)
-                                                await bot.send_message(chat_id=user_id,
-                                                        text=f"❗Unable to Download Subtitle!\n\n{str(data)}")
-                                                mfailed[value] = data
-                                                if WP:
-                                                                cc = f"{str(file_name)}\n\n✅watermark\n❌{str(sub_mode)}"
-                                                else:
-                                                                cc = f"{str(file_name)}\n\n❌watermark\n❌{str(sub_mode)}"
-                                        else:
-                                                trash_list.append(subtitle)
-                                                sub_mode = data['smode']
-                                                datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🎮Remuxing Subtitles', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
-                                                remux_preset =  USER_DATA()[userx]['muxer']['preset']
-                                                await create_process_file(progress)
-                                                if sub_mode=="softremove":
-                                                        mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mkv"
-                                                        mux_res = await softremove_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
-                                                elif sub_mode=="softmux":
-                                                        mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mkv"
-                                                        mux_res = await softmux_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
-                                                elif sub_mode=="hardmux":
-                                                        mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mp4"
-                                                        mux_res = await hardmux_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
-                                                if mux_res[0]:
-                                                        if mux_res[1]:
-                                                                if subprocess_id not in get_sub_process():
-                                                                                SCancel = True
-                                                                                cancelled[value] = data
-                                                                                await clear_trash_list(trash_list)
-                                                                                try:
-                                                                                        await reply.delete()
-                                                                                except:
-                                                                                        pass
-                                                                                await bot.send_message(chat_id=user_id, text=f"🔒Video Skipped By User\n\n{str(file_name)}")
-                                                                                continue
-                                                                if process_id not in get_master_process():
-                                                                                MCancel = True
-                                                                                await clear_trash_list(trash_list)
-                                                                                try:
-                                                                                        await reply.delete()
-                                                                                except:
-                                                                                        pass
-                                                                                break
-                                                        final_video = mux_output
-                                                        trash_list.append(mux_output)
-                                                        send_file = True
-                                                        if WP:
-                                                                cc = f"{str(file_name)}\n\n✅watermark\n✅{str(sub_mode)}"
-                                                        else:
-                                                                cc = f"{str(file_name)}\n\n❌watermark\n✅{str(sub_mode)}"
-                                                else:
-                                                        captionx=f"{str(file_name)}\n\n❌Failed To {str(sub_mode)}"
-                                                        sfail_file = f'{str(file_name)}_slog.txt'
-                                                        zxx = open(sfail_file, "w", encoding="utf-8")
-                                                        zxx.write(str(mux_res[1]))
-                                                        zxx.close()
-                                                        await bot.send_document(chat_id=user_id, document=sfail_file, caption=captionx)
-                                                        print("⛔Muxing Failed")
-                                                        await delete_trash(sfail_file)
-                                                        await delete_trash(subtitle)
-                                                        await delete_trash(mux_output)
-                                                        final_video = output_vid
-                                                        mfailed[value] = data
-                                                        if WP:
-                                                                cc = f"{str(file_name)}\n\n✅watermark\n❌{str(sub_mode)}"
-                                                        else:
-                                                                cc = f"{str(file_name)}\n\n❌watermark\n❌{str(sub_mode)}"
-                                if send_file:
-                                        print("🔶Sending Video")
-                                        if data['thumb']:
-                                                thumb_id = data['tid']
-                                                thumbm = await bot.get_messages(chat_id, thumb_id, replies=0)
-                                                media = get_media(thumbm)
-                                                thumb_name = media.file_name.replace(' ', '')
-                                                thumb_loc = f'{Ddir}/{str(userx)}_{thumb_name}'
-                                                start_time = timex()
-                                                datam = (thumb_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔽Downloading Thumbnail',  '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
-                                                thumbnail = await bot.download_media(
-                                                                message=thumbm ,
-                                                                file_name=thumb_loc,
-                                                                progress=progress_bar,
-                                                                progress_args=(reply,start_time, bot, subprocess_id, process_id, *datam)
-                                                        )
-                                                if thumbnail is None:
-                                                        final_thumb = './thumb.jpg'
-                                                else:
-                                                        final_thumb = thumb_loc
-                                                        trash_list.append(thumb_loc)
-                                        else:
-                                                        final_thumb = './thumb.jpg'
-                                        datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔼Uploadinig Video', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
-                                        print(final_thumb)
-                                        print(final_video)
-                                        if getsize(final_video)<2094000000:
-                                                sendx = await send_tg_video(bot, user_id, final_video, cc, duration, final_thumb, reply, start_time, subprocess_id, process_id, datam)
-                                        else:
-                                                user_reply = await USER.send_message(chat_id=user_id,
-                                                        text=f"🔶File Size Greater Than 2GB, Using User Account To Upload.")
-                                                sendx = await send_tg_video(USER, user_id, final_video, cc, duration, final_thumb, user_reply, start_time, subprocess_id, process_id, datam)
-                                                await user_reply.delete()
-                                        if not sendx[0]:
-                                                await bot.send_message(chat_id=user_id,
-                                                        text=f"❗Unable to Upload Media!\n\n{str(sendx[1])}\n\n{str(data)}")
-                                                failed[value] = data
-                                        if subprocess_id not in get_sub_process():
-                                                                                SCancel = True
-                                                                                cancelled[value] = data
-                                                                                await clear_trash_list(trash_list)
-                                                                                try:
-                                                                                        await reply.delete()
-                                                                                except:
-                                                                                        pass
-                                                                                await bot.send_message(chat_id=user_id, text=f"🔒Video Skipped By User\n\n{str(file_name)}")
-                                                                                continue
-                                        if process_id not in get_master_process():
-                                                                                MCancel = True
-                                                                                await clear_trash_list(trash_list)
-                                                                                try:
-                                                                                        await reply.delete()
-                                                                                except:
-                                                                                        pass
-                                                                                break
-                                await clear_trash_list(trash_list)
-                                try:
-                                        await reply.delete()
-                                except:
-                                        pass
-                else:
-                        MCancel = True
-                        try:
-                                await reply.delete()
-                        except:
-                                pass
-                        break
-        try:
-                await reply.delete()
-        except:
-                pass
-        await delete_all(Ddir)
-        await delete_all(Wdir)
-        fstats = f"❗Failed: {str(len(failed))}\n🚫Cancelled: {str(len(cancelled))}\n🤒FWatermark: {str(len(wfailed))}\n😬FMuxing: {str(len(mfailed))}"
-        if MCancel:
-                await bot.send_message(chat_id=user_id,
-                                                text=f"🔒Task Cancelled By User\n\n{str(fstats)}")
-        else:
-                await bot.send_message(chat_id=user_id,
-                                                text=f"✅Task Completed\n\n{str(fstats)}")
-        return
+#         countx = 1
+#         failed = {}
+#         wfailed = {}
+#         mfailed = {}
+#         cancelled = {}
+#         process_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
+#         append_master_process(process_id)
+#         mtime = timex()
+#         Ddir = f'./{str(userx)}_RAW'
+#         Wdir = f'./{str(userx)}_WORKING'
+#         await make_direc(Ddir)
+#         await make_direc(Wdir)
+#         MCancel = False
+#         SCancel = False
+#         for i in range(limit, limit_to):
+#                 trash_list = []
+#                 if process_id in get_master_process():
+#                                 stime = timex()
+#                                 send_file = False
+#                                 subprocess_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
+#                                 append_sub_process(subprocess_id)
+#                                 remnx = str((limit_to-limit)-countx)
+#                                 value = i+1
+#                                 data = dic[value]
+#                                 vid = data['vid']
+#                                 chat_id = data['chat']
+#                                 m = await bot.get_messages(chat_id, vid, replies=0)
+#                                 media = get_media(m)
+#                                 file_name = media.file_name.replace(' ', '')
+#                                 dl_loc = f'{Ddir}/{str(userx)}_{str(file_name)}'
+#                                 start_time = timex()
+#                                 datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔽Downloading Video', '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
+#                                 reply = await bot.send_message(chat_id=user_id,
+#                                                         text=f"🔽Starting Download ({str(countx)}/{str(limit_to-limit)})\n🎟️File: {file_name}\n🧶Remaining: {str(remnx)}")
+#                                 the_media = None
+#                                 try:
+#                                         the_media = await bot.download_media(
+#                                                         message=m,
+#                                                         file_name=dl_loc,
+#                                                         progress=progress_bar,
+#                                                         progress_args=(reply,start_time, bot, subprocess_id, process_id, *datam)
+#                                                 )
+#                                 except FloodWait as e:
+#                                                 await asynciosleep(int(e.value)+10)
+#                                                 the_media = await bot.download_media(
+#                                                         message=m,
+#                                                         file_name=dl_loc,
+#                                                         progress=progress_bar,
+#                                                         progress_args=(reply,start_time, bot, subprocess_id, process_id, *datam)
+#                                                 )
+#                                 except Exception as e:
+#                                                 await bot.send_message(chat_id=user_id,
+#                                                         text=f"❗Unable to Download Media!\n\n{str(e)}\n\n{str(data)}")
+#                                                 await delete_trash(the_media)
+#                                                 failed[value] = data
+#                                                 try:
+#                                                         await reply.delete()
+#                                                 except:
+#                                                         pass
+#                                                 continue
+#                                 trash_list.append(the_media)
+#                                 if subprocess_id not in get_sub_process():
+#                                                                                 SCancel = True
+#                                                                                 cancelled[value] = data
+#                                                                                 await clear_trash_list(trash_list)
+#                                                                                 try:
+#                                                                                         await reply.delete()
+#                                                                                 except:
+#                                                                                         pass
+#                                                                                 await bot.send_message(chat_id=user_id, text=f"🔒Video Skipped By User\n\n{str(file_name)}")
+#                                                                                 continue
+#                                 if process_id not in get_master_process():
+#                                                                                 MCancel = True
+#                                                                                 await clear_trash_list(trash_list)
+#                                                                                 try:
+#                                                                                         await reply.delete()
+#                                                                                 except:
+#                                                                                         pass
+#                                                                                 break
+#                                 if the_media is None:
+#                                         await delete_trash(the_media)
+#                                         await bot.send_message(chat_id=user_id,
+#                                                         text=f"❗Unable to Download Media!")
+#                                         failed[value] = data
+#                                         try:
+#                                                         await reply.delete()
+#                                         except:
+#                                                         pass
+#                                         continue
+#                                 duration = 0
+#                                 try:
+#                                         duration = int(durationx(the_media))
+#                                 except:
+#                                         pass
+#                                 output_vid = f"{Wdir}/{str(userx)}_{str(file_name)}"
+#                                 progress = f"{Wdir}/{str(userx)}_{str(file_name)}_progress.txt"
+#                                 await create_process_file(progress)
+#                                 await delete_trash(output_vid)
+#                                 preset = USER_DATA()[userx]['watermark']['preset']
+#                                 watermark_position = USER_DATA()[userx]['watermark']['position']
+#                                 watermark_size = USER_DATA()[userx]['watermark']['size']
+#                                 datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🛺Adding Watermark', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
+#                                 output_vid_res = await vidmarkx(the_media, reply, progress, watermark_path, output_vid, duration, preset, watermark_position, watermark_size, datam,subprocess_id, process_id)
+#                                 trash_list.append(output_vid)
+#                                 await delete_trash(progress)
+#                                 if output_vid_res[0]:
+#                                         if output_vid_res[1]:
+#                                                 if subprocess_id not in get_sub_process():
+#                                                                 SCancel = True
+#                                                                 cancelled[value] = data
+#                                                                 await clear_trash_list(trash_list)
+#                                                                 try:
+#                                                                                         await reply.delete()
+#                                                                 except:
+#                                                                                         pass
+#                                                                 await bot.send_message(chat_id=user_id, text=f"🔒Video Skipped By User\n\n{str(file_name)}")
+#                                                                 continue
+#                                                 if process_id not in get_master_process():
+#                                                                 MCancel = True
+#                                                                 await clear_trash_list(trash_list)
+#                                                                 try:
+#                                                                         await reply.delete()
+#                                                                 except:
+#                                                                         pass
+#                                                                 break
+#                                         send_file = True
+#                                         final_video = output_vid
+#                                         WP = True
+#                                         cc = f"{str(file_name)}\n\n✅watermark"
+#                                 else:
+#                                         captionx=f"{str(file_name)}\n\n❌Failed To Add Watermark"
+#                                         wfail_file = f'{str(file_name)}_wlog.txt'
+#                                         zxx = open(wfail_file, "w", encoding="utf-8")
+#                                         zxx.write(str(output_vid_res[1]))
+#                                         zxx.close()
+#                                         await bot.send_document(chat_id=user_id, document=wfail_file, caption=captionx)
+#                                         print("⛔Watermark Adding Failed")
+#                                         await delete_trash(wfail_file)
+#                                         wfailed[value] = data
+#                                         output_vid = the_media
+#                                         WP = False
+#                                         cc = f"{str(file_name)}\n\n❌watermark"
+#                                 if data['sub']:
+#                                         print("🔶Muxing Found")
+#                                         sid = data['sid']
+#                                         subm = await bot.get_messages(chat_id, sid, replies=0)
+#                                         media = get_media(subm)
+#                                         sub_name = media.file_name.replace(' ', '')
+#                                         sub_loc = f'{Ddir}/{str(userx)}_{str(sub_name)}'
+#                                         start_time = timex()
+#                                         datam = (sub_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔽Downloading Subtitle',  '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
+#                                         subtitle = await bot.download_media(
+#                                                         message=subm,
+#                                                         file_name=sub_loc,
+#                                                         progress=progress_bar,
+#                                                         progress_args=(reply,start_time, bot, subprocess_id, process_id, *datam)
+#                                                 )
+#                                         if subtitle is None:
+#                                                 await delete_trash(subtitle)
+#                                                 await bot.send_message(chat_id=user_id,
+#                                                         text=f"❗Unable to Download Subtitle!\n\n{str(data)}")
+#                                                 mfailed[value] = data
+#                                                 if WP:
+#                                                                 cc = f"{str(file_name)}\n\n✅watermark\n❌{str(sub_mode)}"
+#                                                 else:
+#                                                                 cc = f"{str(file_name)}\n\n❌watermark\n❌{str(sub_mode)}"
+#                                         else:
+#                                                 trash_list.append(subtitle)
+#                                                 sub_mode = data['smode']
+#                                                 datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🎮Remuxing Subtitles', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
+#                                                 remux_preset =  USER_DATA()[userx]['muxer']['preset']
+#                                                 await create_process_file(progress)
+#                                                 if sub_mode=="softremove":
+#                                                         mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mkv"
+#                                                         mux_res = await softremove_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
+#                                                 elif sub_mode=="softmux":
+#                                                         mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mkv"
+#                                                         mux_res = await softmux_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
+#                                                 elif sub_mode=="hardmux":
+#                                                         mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mp4"
+#                                                         mux_res = await hardmux_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
+#                                                 if mux_res[0]:
+#                                                         if mux_res[1]:
+#                                                                 if subprocess_id not in get_sub_process():
+#                                                                                 SCancel = True
+#                                                                                 cancelled[value] = data
+#                                                                                 await clear_trash_list(trash_list)
+#                                                                                 try:
+#                                                                                         await reply.delete()
+#                                                                                 except:
+#                                                                                         pass
+#                                                                                 await bot.send_message(chat_id=user_id, text=f"🔒Video Skipped By User\n\n{str(file_name)}")
+#                                                                                 continue
+#                                                                 if process_id not in get_master_process():
+#                                                                                 MCancel = True
+#                                                                                 await clear_trash_list(trash_list)
+#                                                                                 try:
+#                                                                                         await reply.delete()
+#                                                                                 except:
+#                                                                                         pass
+#                                                                                 break
+#                                                         final_video = mux_output
+#                                                         trash_list.append(mux_output)
+#                                                         send_file = True
+#                                                         if WP:
+#                                                                 cc = f"{str(file_name)}\n\n✅watermark\n✅{str(sub_mode)}"
+#                                                         else:
+#                                                                 cc = f"{str(file_name)}\n\n❌watermark\n✅{str(sub_mode)}"
+#                                                 else:
+#                                                         captionx=f"{str(file_name)}\n\n❌Failed To {str(sub_mode)}"
+#                                                         sfail_file = f'{str(file_name)}_slog.txt'
+#                                                         zxx = open(sfail_file, "w", encoding="utf-8")
+#                                                         zxx.write(str(mux_res[1]))
+#                                                         zxx.close()
+#                                                         await bot.send_document(chat_id=user_id, document=sfail_file, caption=captionx)
+#                                                         print("⛔Muxing Failed")
+#                                                         await delete_trash(sfail_file)
+#                                                         await delete_trash(subtitle)
+#                                                         await delete_trash(mux_output)
+#                                                         final_video = output_vid
+#                                                         mfailed[value] = data
+#                                                         if WP:
+#                                                                 cc = f"{str(file_name)}\n\n✅watermark\n❌{str(sub_mode)}"
+#                                                         else:
+#                                                                 cc = f"{str(file_name)}\n\n❌watermark\n❌{str(sub_mode)}"
+#                                 if send_file:
+#                                         print("🔶Sending Video")
+#                                         if data['thumb']:
+#                                                 thumb_id = data['tid']
+#                                                 thumbm = await bot.get_messages(chat_id, thumb_id, replies=0)
+#                                                 media = get_media(thumbm)
+#                                                 thumb_name = media.file_name.replace(' ', '')
+#                                                 thumb_loc = f'{Ddir}/{str(userx)}_{thumb_name}'
+#                                                 start_time = timex()
+#                                                 datam = (thumb_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔽Downloading Thumbnail',  '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
+#                                                 thumbnail = await bot.download_media(
+#                                                                 message=thumbm ,
+#                                                                 file_name=thumb_loc,
+#                                                                 progress=progress_bar,
+#                                                                 progress_args=(reply,start_time, bot, subprocess_id, process_id, *datam)
+#                                                         )
+#                                                 if thumbnail is None:
+#                                                         final_thumb = './thumb.jpg'
+#                                                 else:
+#                                                         final_thumb = thumb_loc
+#                                                         trash_list.append(thumb_loc)
+#                                         else:
+#                                                         final_thumb = './thumb.jpg'
+#                                         datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔼Uploadinig Video', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
+#                                         print(final_thumb)
+#                                         print(final_video)
+#                                         if getsize(final_video)<2094000000:
+#                                                 sendx = await send_tg_video(bot, user_id, final_video, cc, duration, final_thumb, reply, start_time, subprocess_id, process_id, datam)
+#                                         else:
+#                                                 user_reply = await USER.send_message(chat_id=user_id,
+#                                                         text=f"🔶File Size Greater Than 2GB, Using User Account To Upload.")
+#                                                 sendx = await send_tg_video(USER, user_id, final_video, cc, duration, final_thumb, user_reply, start_time, subprocess_id, process_id, datam)
+#                                                 await user_reply.delete()
+#                                         if not sendx[0]:
+#                                                 await bot.send_message(chat_id=user_id,
+#                                                         text=f"❗Unable to Upload Media!\n\n{str(sendx[1])}\n\n{str(data)}")
+#                                                 failed[value] = data
+#                                         if subprocess_id not in get_sub_process():
+#                                                                                 SCancel = True
+#                                                                                 cancelled[value] = data
+#                                                                                 await clear_trash_list(trash_list)
+#                                                                                 try:
+#                                                                                         await reply.delete()
+#                                                                                 except:
+#                                                                                         pass
+#                                                                                 await bot.send_message(chat_id=user_id, text=f"🔒Video Skipped By User\n\n{str(file_name)}")
+#                                                                                 continue
+#                                         if process_id not in get_master_process():
+#                                                                                 MCancel = True
+#                                                                                 await clear_trash_list(trash_list)
+#                                                                                 try:
+#                                                                                         await reply.delete()
+#                                                                                 except:
+#                                                                                         pass
+#                                                                                 break
+#                                 await clear_trash_list(trash_list)
+#                                 try:
+#                                         await reply.delete()
+#                                 except:
+#                                         pass
+#                 else:
+#                         MCancel = True
+#                         try:
+#                                 await reply.delete()
+#                         except:
+#                                 pass
+#                         break
+#         try:
+#                 await reply.delete()
+#         except:
+#                 pass
+#         await delete_all(Ddir)
+#         await delete_all(Wdir)
+#         fstats = f"❗Failed: {str(len(failed))}\n🚫Cancelled: {str(len(cancelled))}\n🤒FWatermark: {str(len(wfailed))}\n😬FMuxing: {str(len(mfailed))}"
+#         if MCancel:
+#                 await bot.send_message(chat_id=user_id,
+#                                                 text=f"🔒Task Cancelled By User\n\n{str(fstats)}")
+#         else:
+#                 await bot.send_message(chat_id=user_id,
+#                                                 text=f"✅Task Completed\n\n{str(fstats)}")
+#         return
 
-
-################test###########
-@Client.on_message(filters.command(["test"]))
-async def testm(client, message):
-        user_id = message.chat.id
-        userx = message.from_user.id
-        process_id = 123589378937
-        append_master_process(process_id)
-        modes = {'files': 1, 'process_id': process_id}
-        modes['process_type'] = 'Rclone Uploading'
-        file_name = "test.mkv"
-        datam = ['test.mkv', '🔼Uploading To Drive', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', timex()]
-        reply = await client.send_message(chat_id=user_id,
-                                                text=f"starting")
-        command =  [ "rclone",
-                                        "copy",
-                                        f"--config=rclone.conf",
-                                        f'./test.mkv',
-                                        'tdtest:/',
-                                        "-f",
-                                        "- *.!qB",
-                                        "--buffer-size=1M",
-                                        "-P",
-                                ]
-        entName = escape(file_name)
-        search_command =  [
-                        "rclone",
-                        "lsjson",
-                        "--config=rclone.conf",
-                        'tdtest:/',
-                        "--files-only",
-                        "-f",
-                        f"+ {entName}",
-                        "-f",
-                        "- *",
-                ]
-        upload = await upload_rclone(client, user_id, reply, command, 'test.mkv', datam, modes, search_command)
 
 
 ################Cancel Process###########
@@ -1749,8 +1735,8 @@ async def crf(client, message):
                 return
 
 ########Save Watermark#######
-@Client.on_message(filters.command('watermark'))
-async def watermark(client, message):
+@Client.on_message(filters.command('savewatermark'))
+async def savewatermark(client, message):
     user_id = message.chat.id
     userx = message.from_user.id
     if userx not in USER_DATA():
@@ -1783,7 +1769,7 @@ async def watermark(client, message):
 
 
 ########Save Rclone Config#######
-@Client.on_message(filters.command('addrclone'))
+@Client.on_message(filters.command('saverclone'))
 async def addrclone(client, message):
     user_id = message.chat.id
     userx = message.from_user.id
