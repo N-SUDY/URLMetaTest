@@ -282,7 +282,17 @@ async def processor(bot, message, muxing_type):
                                         return
                 m = await bot.get_messages(user_id, file_id, replies=0)
                 media = get_media(m)
-                file_name = media.file_name
+                try:
+                        file_name = media.file_name
+                except Exception as e:
+                            merror = 'Message_Error.txt'
+                            trash_list.append(merror)
+                            zxx = open(merror, "w", encoding="utf-8")
+                            zxx.write(str(m))
+                            zxx.close()
+                            await bot.send_document(chat_id=user_id, document=merror, caption={str(e)})
+                            await clear_trash_list(trash_list)
+                            return
                 punc = ['!', '(', ')', '[', ']', '|', '{', '}', ';', ':', "'", '=', '"', '\\', ',', '<', '>', '/', '?', '@', '#', '$', '%', '^', '&', '*', '~', "  ", "\t", "+", "b'", "'"]
                 for ele in punc:
                         if ele in file_name:
@@ -394,7 +404,7 @@ async def processor(bot, message, muxing_type):
                                                 modes['crf'] = 'False'
                                         watermark_path = f'./{str(userx)}_watermark.jpg'
                                         process_name = '🛺Adding Watermark'
-                                        command = ["ffmpeg", "-hide_banner", "-progress", progress, "-i", the_media, "-i", watermark_path, "-map", f"0:v", "-map", f"{str(map)}", "-map", f"0:s",
+                                        command = ["ffmpeg", "-hide_banner", "-progress", progress, "-i", the_media, "-i", watermark_path, "-map", f"0:v", "-map", f"{str(map)}", "-map", f"0:s?",
                                                                         "-filter_complex", f"[1][0]scale2ref=w='iw*{watermark_size}/100':h='ow/mdar'[wm][vid];[vid][wm]overlay={watermark_position}", "-preset", preset]
                                         if encode:
                                                 encoder = USER_DATA()[userx]['watermark']['encoder']
@@ -458,7 +468,7 @@ async def processor(bot, message, muxing_type):
                                                                 '-map','1:0',
                                                                 '-map','0:v',
                                                                 '-map',f'{str(map)}',
-                                                                '-map','0:s',
+                                                                '-map','0:s?',
                                                                 '-disposition:s:0','default']
                                         if encode:
                                                 if use_crf:
@@ -534,7 +544,7 @@ async def processor(bot, message, muxing_type):
                                                                 '-progress', progress, '-i', the_media,
                                                                 '-map','0:v',
                                                                 '-map',f'{str(map)}',
-                                                                "-map", "0:s"]
+                                                                "-map", "0:s?"]
                                         if encoder=='libx265':
                                                 c_mid = ['-vcodec','libx265', '-vtag', 'hvc1']
                                         else:
