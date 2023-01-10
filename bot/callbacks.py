@@ -579,3 +579,54 @@ async def newbt(client, callback_query):
                         f"Ok Dont Waste My Time😂",
                         show_alert=True)
             return
+        
+
+        elif txt.startswith("cmapsub_") or txt.startswith("mrgmap_"):
+                new_position = txt.split("_", 1)[1]
+                if txt.startswith("cmapsub_"):
+                    if new_position=="True":
+                        new_position = True
+                    else:
+                        new_position = False
+                    await saveconfig(userx, 'compress', 'map_sub', new_position)
+                elif txt.startswith("mrgmap_"):
+                    if new_position=="True":
+                        new_position = True
+                    else:
+                        new_position = False
+                    await saveconfig(userx, 'merge', 'map', new_position)
+                compress_sub_map = USER_DATA()[userx]['compress']['map_sub']
+                merge_map = USER_DATA()[userx]['merge']['map']
+                KeyBoard = []
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🏮Map Compress Subtitle - {str(compress_sub_map)}🏮", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"cmapsub_{str(x)}"
+                    if compress_sub_map!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🍧Map Merged Streams - {str(merge_map)}🍧", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"mrgmap_{str(x)}"
+                    if merge_map!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                try:
+                    await callback_query.message.edit(
+                        text="Settings",
+                        disable_web_page_preview=True,
+                        reply_markup=InlineKeyboardMarkup(KeyBoard))
+                except Exception as e:
+                    print(e)
+                return

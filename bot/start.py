@@ -36,7 +36,7 @@ async def send_tg_video(bot, user_id, final_video_list, cc_options, duration, fi
                         total = len(final_video_list)
                         for final_video in final_video_list:
                                         vname = str(final_video.split('/')[-1])
-                                        datam[0] = vname + f" [{str(z)}/{str(total)}]"
+                                        datam.append(f" [{str(z)}/{str(total)}]")
                                         cc = f"{str(vname)}\n\n{str(cc_options)}"
                                         print("🔶Starting Video Upload", vname)
                                         try:
@@ -195,7 +195,7 @@ async def split_video_file(bot, user_id, reply, split_size, dirpath, file, file_
 
 
 ##########Processor################
-async def processor(bot, message, muxing_type):
+async def processor(bot, message, muxing_type, *process_options):
                 user_id = message.chat.id
                 userx = message.from_user.id
                 trash_list = []
@@ -204,35 +204,39 @@ async def processor(bot, message, muxing_type):
                 Sdir = f'./{str(userx)}_Split'
                 await make_direc(Ddir)
                 await make_direc(Wdir)
-                try:
-                                file_type = message.reply_to_message.video or message.reply_to_message.document
-                                if file_type.mime_type.startswith("video/"):
-                                        file_id = int(message.reply_to_message.id)
-                                else:
-                                        await bot.send_message(user_id, "❌Invalid Media")
-                                        return
-                except:
-                        try:
-                                ask = await bot.ask(user_id, '*️⃣ Send Me Video\n\n⌛Request TimeOut In 120 Seconds', timeout=120, filters=(filters.document | filters.video))
-                                file_type = ask.video or ask.document
-                                if file_type.mime_type.startswith("video/"):
-                                        file_id = ask.id
-                                else:
+                process_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
+                if muxing_type!='Merging':
+                                try:
+                                                file_type = message.reply_to_message.video or message.reply_to_message.document
+                                                if file_type.mime_type.startswith("video/"):
+                                                        file_id = [int(message.reply_to_message.id)]
+                                                else:
+                                                        await bot.send_message(user_id, "❌Invalid Media")
+                                                        return
+                                except:
+                                        try:
+                                                ask = await bot.ask(user_id, '*️⃣ Send Me Video\n\n⌛Request TimeOut In 120 Seconds', timeout=120, filters=(filters.document | filters.video))
+                                                file_type = ask.video or ask.document
+                                                if file_type.mime_type.startswith("video/"):
+                                                        file_id = [ask.id]
+                                                else:
+                                                        await ask.request.delete()
+                                                        await bot.send_message(user_id, "❌Invalid Media")
+                                                        return
+                                        except:
+                                                await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
+                                                return
                                         await ask.request.delete()
-                                        await bot.send_message(user_id, "❌Invalid Media")
-                                        return
-                        except:
-                                await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
-                                return
-                        await ask.request.delete()
+                else:
+                        file_id = process_options[0]
                 custom_thumb = False
                 try:
                         ask = await bot.ask(user_id, f'*️⃣ Send Me Thumbnail For This Video\n\n🔷Send `pass` for default Thumbnail\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.photo | filters.text))
                         thumb = ask.id
                         if ask.photo or (ask.document and ask.document.mime_type.startswith("image/")):
                                 thumbm = await bot.get_messages(user_id, thumb, replies=0)
-                                thumb_name = get_media(thumbm).file_name.replace(' ', '')
-                                thumb_loc = f'{Ddir}/{str(userx)}_{str(thumb_name)}'
+                                thumb_name = process_id
+                                thumb_loc = f'{Ddir}/{str(userx)}_{str(thumb_name)}.jpg'
                                 trash_list.append(thumb_loc)
                                 thumb_download = await bot.download_media(thumbm, thumb_loc)
                                 if thumb_download is None:
@@ -245,7 +249,7 @@ async def processor(bot, message, muxing_type):
                                 print(e)
                                 await bot.send_message(user_id, "🔃Timed Out Or Some Error Occured! Tasked Has Been Cancelled.\nDefault Thumbnail Will Be Used Now")
                 print("🎨Process Type", muxing_type)
-                if muxing_type not in ('Watermark' 'Compressing'):
+                if muxing_type not in ['Watermark', 'Compressing', 'Merging']:
                         try:
                                 ask = await bot.ask(user_id, f'*️⃣Send Subtitle File To Mux\n\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.document)
                                 if ask.document:
@@ -264,11 +268,10 @@ async def processor(bot, message, muxing_type):
                                         await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
                                         return
                         await ask.request.delete()
-                process_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
                 append_master_process(process_id)
                 mptime = timex()
                 map = '0:a'
-                if muxing_type not in ('Watermark', 'Compressing'):
+                if muxing_type not in ['Watermark', 'Compressing', 'Merging']:
                                 subm = await bot.get_messages(user_id, sub_id, replies=0)
                                 sub_name = get_media(subm).file_name.replace(' ', '')
                                 sub_loc = f'{Ddir}/{str(userx)}_{str(sub_name)}'
@@ -280,111 +283,119 @@ async def processor(bot, message, muxing_type):
                                         await  bot.send_message(chat_id=user_id,
                                                         text=f"❌Failed To Download Subtitles")
                                         return
-                m = await bot.get_messages(user_id, file_id, replies=0)
-                media = get_media(m)
-                try:
-                        file_name = media.file_name
-                except Exception as e:
-                            merror = 'Message_Error.txt'
-                            trash_list.append(merror)
-                            zxx = open(merror, "w", encoding="utf-8")
-                            zxx.write(str(m))
-                            zxx.close()
-                            await bot.send_document(chat_id=user_id, document=merror, caption={str(e)})
-                            await clear_trash_list(trash_list)
-                            return
-                punc = ['!', '(', ')', '[', ']', '|', '{', '}', ';', ':', "'", '=', '"', '\\', ',', '<', '>', '/', '?', '@', '#', '$', '%', '^', '&', '*', '~', "  ", "\t", "+", "b'", "'"]
-                for ele in punc:
-                        if ele in file_name:
-                                file_name = file_name.replace(ele, '')
-                date_now = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
-                file_name = f'{str(date_now)} {str(file_name)}'
-                dl_loc = f'{Ddir}/{str(userx)}_{str(file_name)}'
-                start_time = timex()
-                modes = {'files': 1, 'process_id': process_id}
-                datam = (file_name, '🔽Downloading Video', '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', mptime)
+                findex = 1
+                ftotal = len(file_id)
+                infile_names = ''
                 reply = await bot.send_message(chat_id=user_id,
-                                        text=f"🔽Starting Download\n🎟️File: {file_name}")
-                try:
-                        download = await download_tg_file(bot, m, dl_loc, reply, start_time, datam, modes)
-                        check_data = [[process_id, get_master_process()]]
-                        checker = await process_checker(check_data)
-                        if not checker:
-                                await delete_trash(dl_loc)
-                                await reply.edit("🔒Task Cancelled By User")
-                                return
-                        if download[0]:
-                                the_media = download[1]
-                                trash_list.append(the_media)
-                                select_stream = USER_DATA()[userx]['select_stream']
-                                language = USER_DATA()[userx]['stream']
-                                if select_stream:
-                                        get_streams = await execute(
-                                                                                                f"ffprobe -hide_banner -show_streams -print_format json '{the_media}'"
-                                                                                        )
-                                        if not get_streams:
-                                                        await bot.send_message(user_id, "❌Failed To Get Audio Streams From Video")
-                                                        select_stream = False
-                                        else:
-                                                details = loads(get_streams[0])
-                                                stream_data = {}
-                                                smsg = ''
-                                                try:
-                                                        for stream in details["streams"]:
-                                                                stream_name = stream["codec_name"]
-                                                                stream_type = stream["codec_type"]
-                                                                codec_long_name = stream['codec_long_name']
-                                                                if stream_type in ("audio"):
-                                                                        mapping = stream["index"]
-                                                                        try:
-                                                                                lang = stream["tags"]["language"]
-                                                                        except:
-                                                                                lang = mapping
-                                                                        sname = f"{stream_type.upper()} - {str(lang).upper()} [{codec_long_name}]"
-                                                                        stream_data[sname] = {}
-                                                                        stream_data[sname]['index'] =mapping
-                                                                        stream_data[sname]['language'] = str(lang).upper()
-                                                                        smsg+= f'`{sname}`\n\n'
-                                                        if len(stream_data)==0:
-                                                                await bot.send_message(user_id, "❗No Stream Found In Video")
-                                                                select_stream = False
-                                                        elif len(stream_data)==1:
-                                                                await bot.send_message(user_id, "🔶Only One Audio Present In The Video So Skipping Stream Select.")
-                                                                select_stream = False
-                                                        else:
-                                                                skeys = list(stream_data.keys())
-                                                                LFound= False
-                                                                for k in skeys:
-                                                                        if stream_data[k]['language']==language:
-                                                                                LFound = True
-                                                                                cstream = k
-                                                                                stream_no = stream_data[cstream]['index']
-                                                                                map = f'0:a:{str(int(stream_no)-1)}'
-                                                                                print(f'🔶Stream Selected For {str(file_name)}\n{str(cstream)}\nStream No: {str(stream_no)}')
-                                                                if not LFound:
-                                                                        try:
-                                                                                        ask = await bot.ask(user_id, f'*️⃣{str(len(stream_data))} Streams Found, Send Stream From Below Streams\n\n\n{str(smsg)}\n⌛Request Timeout In 5 Minutes.', timeout=300, filters=filters.text)
-                                                                                        cstream  = ask.text
-                                                                                        if cstream not in stream_data:
-                                                                                                await ask.request.delete()
-                                                                                                await bot.send_message(user_id, "❗Invalid Stream")
-                                                                                                select_stream = False
-                                                                                        else:
-                                                                                                await ask.request.delete()
-                                                                                                stream_no = stream_data[cstream]['index']
-                                                                                                map = f'0:a:{str(int(stream_no)-1)}'
-                                                                                                print(f'🔶Stream Selected For {str(file_name)}\n{str(cstream)}\nStream No: {str(stream_no)}')
-                                                                        except:
-                                                                                await bot.send_message(user_id, "🔃Timed Out Or Invalid Values! Tasked Has Been Cancelled.")
-                                                                                select_stream = False
-                                                except Exception as e:
-                                                        await bot.send_message(user_id, "❌Failed To Get Audio Streams From Video")
-                                                        select_stream = False
-                                duration = 0
+                                                        text=f"🔽Starting Download")
+                for fid in file_id:
+                                m = await bot.get_messages(user_id, fid, replies=0)
+                                media = get_media(m)
                                 try:
-                                        duration = int(durationx(the_media))
-                                except:
-                                        pass
+                                        file_name = media.file_name
+                                except Exception as e:
+                                        merror = 'Message_Error.txt'
+                                        trash_list.append(merror)
+                                        zxx = open(merror, "w", encoding="utf-8")
+                                        zxx.write(str(m))
+                                        zxx.close()
+                                        await bot.send_document(chat_id=user_id, document=merror, caption={str(e)})
+                                        await clear_trash_list(trash_list)
+                                        return
+                                punc = ['!', '(', ')', '[', ']', '|', '{', '}', ';', ':', "'", '=', '"', '\\', ',', '<', '>', '/', '?', '@', '#', '$', '%', '^', '&', '*', '~', "  ", "\t", "+", "b'", "'"]
+                                for ele in punc:
+                                        if ele in file_name:
+                                                file_name = file_name.replace(ele, '')
+                                date_now = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+                                file_name = f'{str(date_now)} {str(file_name)}'
+                                dl_loc = f'{Ddir}/{str(userx)}_{str(file_name)}'
+                                trash_list.append(dl_loc)
+                                start_time = timex()
+                                modes = {'files': 1, 'process_id': process_id}
+                                datam = (file_name, '🔽Downloading Video', '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', mptime, f'[{str(findex)}/{str(ftotal)}]')
+                                download = await download_tg_file(bot, m, dl_loc, reply, start_time, datam, modes)
+                                check_data = [[process_id, get_master_process()]]
+                                checker = await process_checker(check_data)
+                                if not checker:
+                                        await clear_trash_list(trash_list)
+                                        await reply.edit("🔒Task Cancelled By User")
+                                        return
+                                findex +=1
+                                infile_names += infile_names +f"file '{str(dl_loc)}'\n"
+                try:
+                        if download[0]:
+                                if muxing_type!='Merging':
+                                        the_media = download[1]
+                                        trash_list.append(the_media)
+                                        select_stream = USER_DATA()[userx]['select_stream']
+                                        language = USER_DATA()[userx]['stream']
+                                        if select_stream:
+                                                get_streams = await execute(
+                                                                                                        f"ffprobe -hide_banner -show_streams -print_format json '{the_media}'"
+                                                                                                )
+                                                if not get_streams:
+                                                                await bot.send_message(user_id, "❌Failed To Get Audio Streams From Video")
+                                                                select_stream = False
+                                                else:
+                                                        details = loads(get_streams[0])
+                                                        stream_data = {}
+                                                        smsg = ''
+                                                        try:
+                                                                for stream in details["streams"]:
+                                                                        stream_name = stream["codec_name"]
+                                                                        stream_type = stream["codec_type"]
+                                                                        codec_long_name = stream['codec_long_name']
+                                                                        if stream_type in ("audio"):
+                                                                                mapping = stream["index"]
+                                                                                try:
+                                                                                        lang = stream["tags"]["language"]
+                                                                                except:
+                                                                                        lang = mapping
+                                                                                sname = f"{stream_type.upper()} - {str(lang).upper()} [{codec_long_name}]"
+                                                                                stream_data[sname] = {}
+                                                                                stream_data[sname]['index'] =mapping
+                                                                                stream_data[sname]['language'] = str(lang).upper()
+                                                                                smsg+= f'`{sname}`\n\n'
+                                                                if len(stream_data)==0:
+                                                                        await bot.send_message(user_id, "❗No Stream Found In Video")
+                                                                        select_stream = False
+                                                                elif len(stream_data)==1:
+                                                                        await bot.send_message(user_id, "🔶Only One Audio Present In The Video So Skipping Stream Select.")
+                                                                        select_stream = False
+                                                                else:
+                                                                        skeys = list(stream_data.keys())
+                                                                        LFound= False
+                                                                        for k in skeys:
+                                                                                if stream_data[k]['language']==language:
+                                                                                        LFound = True
+                                                                                        cstream = k
+                                                                                        stream_no = stream_data[cstream]['index']
+                                                                                        map = f'0:a:{str(int(stream_no)-1)}'
+                                                                                        print(f'🔶Stream Selected For {str(file_name)}\n{str(cstream)}\nStream No: {str(stream_no)}')
+                                                                        if not LFound:
+                                                                                try:
+                                                                                                ask = await bot.ask(user_id, f'*️⃣{str(len(stream_data))} Streams Found, Send Stream From Below Streams\n\n\n{str(smsg)}\n⌛Request Timeout In 5 Minutes.', timeout=300, filters=filters.text)
+                                                                                                cstream  = ask.text
+                                                                                                if cstream not in stream_data:
+                                                                                                        await ask.request.delete()
+                                                                                                        await bot.send_message(user_id, "❗Invalid Stream")
+                                                                                                        select_stream = False
+                                                                                                else:
+                                                                                                        await ask.request.delete()
+                                                                                                        stream_no = stream_data[cstream]['index']
+                                                                                                        map = f'0:a:{str(int(stream_no)-1)}'
+                                                                                                        print(f'🔶Stream Selected For {str(file_name)}\n{str(cstream)}\nStream No: {str(stream_no)}')
+                                                                                except:
+                                                                                        await bot.send_message(user_id, "🔃Timed Out Or Invalid Values! Tasked Has Been Cancelled.")
+                                                                                        select_stream = False
+                                                        except Exception as e:
+                                                                await bot.send_message(user_id, "❌Failed To Get Audio Streams From Video")
+                                                                select_stream = False
+                                        duration = 0
+                                        try:
+                                                duration = int(durationx(the_media))
+                                        except:
+                                                pass
                                 progress = f"{Wdir}/{str(userx)}_{str(file_name)}_progress.txt"
                                 await create_process_file(progress)
                                 if muxing_type=='Watermark':
@@ -540,26 +551,92 @@ async def processor(bot, message, muxing_type):
                                         modes['encoder'] = encoder
                                         process_name = '🏮Compressing Video'
                                         modes['crf'] = compress_crf
-                                        command = ['ffmpeg','-hide_banner',
-                                                                '-progress', progress, '-i', the_media,
-                                                                '-map','0:v',
-                                                                '-map',f'{str(map)}',
-                                                                "-map", "0:s?"]
+                                        compress_sub_map = USER_DATA()[userx]['compress']['map_sub']
+                                        if compress_sub_map:
+                                                modes['map_sub'] = 'True'
+                                                command = ['ffmpeg','-hide_banner',
+                                                                        '-progress', progress, '-i', the_media,
+                                                                        '-map','0:v',
+                                                                        '-map',f'{str(map)}',
+                                                                        "-map", "0:s?"]
+                                        else:
+                                                modes['map_sub'] = 'False'
+                                                command = ['ffmpeg','-hide_banner',
+                                                                        '-progress', progress, '-i', the_media,
+                                                                        '-map','0:v',
+                                                                        '-map',f'{str(map)}']
                                         if encoder=='libx265':
                                                 c_mid = ['-vcodec','libx265', '-vtag', 'hvc1']
                                         else:
                                                 c_mid = ['-vcodec','libx264']
                                         command = command + c_mid + ['-preset', preset, '-crf',f'{str(compress_crf)}', '-y',output_vid]
+                                elif muxing_type=='Merging':
+                                        select_stream = False
+                                        print(infile_names.strip())
+                                        input_file = f'{str(userx)}_Merge.txt'
+                                        trash_list.append(input_file)
+                                        zxx = open(input_file, "w", encoding="utf-8")
+                                        zxx.write(str(infile_names.strip()))
+                                        zxx.close()
+                                        ename = f'{str(userx)}_{str(file_name)}.mkv'
+                                        output_vid = f"{Wdir}/{ename}"
+                                        preset =  'False'
+                                        compress_crf = 'False'
+                                        encoder = 'False'
+                                        modes['encoder'] = encoder
+                                        process_name = '🍧Merging  Video'
+                                        modes['crf'] = compress_crf
+                                        map_merge = USER_DATA()[userx]['merge']['map']
+                                        if map_merge:
+                                                modes['map'] = 'True'
+                                                command = [
+                                                                                "ffmpeg",
+                                                                                "-f",
+                                                                                "concat",
+                                                                                "-safe",
+                                                                                "0",
+                                                                                "-i",
+                                                                                input_file,
+                                                                                "-map",
+                                                                                "0",
+                                                                                "-c",
+                                                                                "copy",
+                                                                                output_vid,
+                                                                        ]
+                                        else:
+                                                modes['map'] = 'False'
+                                                command = [
+                                                                                "ffmpeg",
+                                                                                "-f",
+                                                                                "concat",
+                                                                                "-safe",
+                                                                                "0",
+                                                                                "-i",
+                                                                                input_file,
+                                                                                "-c",
+                                                                                "copy",
+                                                                                output_vid,
+                                                                        ]
+                                        print(command)
                                 trash_list.append(output_vid)
                                 await delete_trash(output_vid)
                                 datam = (file_name, process_name, mptime)
                                 modes['process_type'] = muxing_type
-                                wresult = await ffmpeg_engine(bot, user_id, reply, command, the_media, output_vid, preset, progress, duration, datam, modes)
+                                if muxing_type!='Merging':
+                                        wresult = await ffmpeg_engine(bot, user_id, reply, command, the_media, output_vid, preset, progress, duration, datam, modes)
+                                else:
+                                        wresult = await ffmpeg_engine(bot, user_id, reply, command, ftotal, output_vid, preset, progress, 0, datam, modes)
                                 if wresult[0]:
                                         if wresult[1]:
                                                 await clear_trash_list(trash_list)
                                                 await reply.edit("🔒Task Cancelled By User")
                                         else:
+                                                if muxing_type=='Merging':
+                                                        duration = 0
+                                                        try:
+                                                                duration = int(durationx(output_vid))
+                                                        except:
+                                                                pass
                                                 if not select_stream:
                                                         cc = ''
                                                 else:
@@ -881,6 +958,47 @@ async def compressvideo(bot, message):
         else:
                 await bot.send_message(user_id, "❌Not Authorized")
                 return
+        
+
+
+##############Req######################
+@Client.on_message(filters.command(["merge"]))
+async def mergevideo(client, message):
+    user_id = message.chat.id
+    userx = message.from_user.id
+    if userx not in USER_DATA():
+            await new_user(userx)
+    if userx not in sudo_users:
+                await client.send_message(user_id, "❌Not Authorized")
+                return
+    vdata = []
+    q = 1
+    while True:
+            try:
+                        ask = await client.ask(user_id, f'*️⃣ Send Me Video No. {str(q)}\n\n🔶Send `stop` To Stop\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.video | filters.text))
+                        video = ask.id
+                        try:
+                            if not ask.video or ask.document:
+                                    if ask.text == "stop":
+                                            await ask.request.delete()
+                                            break
+                        except:
+                            pass
+                        if ask.video or ask.document:
+                            file_type = ask.video or ask.document
+                            if file_type.mime_type.startswith("video/"):
+                                vdata.append(video)
+                        else:
+                            continue
+                        q+=1
+            except Exception as e:
+                    print(e)
+                    await client.send_message(user_id, "🔃Tasked Has Been Cancelled.")
+                    break
+            await ask.request.delete()
+    muxing_type = 'Merging'
+    await processor(client, message,muxing_type, *(vdata,))
+    return
 
 
 ###############start remux##############
@@ -1859,3 +1977,49 @@ async def restart(_, message):
         reply = await message.reply_text("♻Restarting...", True)
         await save_restart(message.chat.id, reply.id)
         execl(executable, executable, *argv)
+        
+
+
+##############MAP################
+@Client.on_message(filters.command(["map"]))
+async def map_fns(client, message):
+                user_id = message.chat.id
+                userx = message.from_user.id
+                if userx not in USER_DATA():
+                        await new_user(userx)
+                if userx not in sudo_users:
+                                await client.send_message(user_id, "❌Not Authorized")
+                                return
+                compress_sub_map = USER_DATA()[userx]['compress']['map_sub']
+                merge_map = USER_DATA()[userx]['merge']['map']
+                KeyBoard = []
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🏮Map Compress Subtitle - {str(compress_sub_map)}🏮", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"cmapsub_{str(x)}"
+                    if compress_sub_map!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🍧Map Merged Streams - {str(merge_map)}🍧", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"mrgmap_{str(x)}"
+                    if merge_map!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                await message.reply_text(
+                        text="Settings",
+                        disable_web_page_preview=True,
+                        reply_markup= InlineKeyboardMarkup(KeyBoard)
+                        )
+                return

@@ -83,9 +83,10 @@ async def progress_bar(current,total,reply,start, client, datam, modes):
                     process_name = datam[1]
                     mode = datam[2]
                     mas_time = datam[3]
+                    findex = datam[4]
                     masterprocess_time = get_readable_time(timex() - mas_time)
                     bot_uptime = getbotuptime()
-                    process_head = f"{str(process_name)}\n🎟️File: {name}"
+                    process_head = f"{str(process_name)}\n🎟️File: {name} {str(findex)}"
                     process_mid = f"🔹MP Time: {str(masterprocess_time)}"
                     ptext = f"🔴Cancel Task: `/cancel mp {str(process_id)}`"
                     process_foot = f"♥️Bot Uptime: {str(bot_uptime)}\n{str(ptext)}"

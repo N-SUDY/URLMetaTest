@@ -115,15 +115,24 @@ async def new_user(user_id):
         User_Data[user_id]['watermark']['encode'] = True
         User_Data[user_id]['watermark']['encoder'] = 'libx265'
         User_Data[user_id]['watermark']['preset'] = 'ultrafast'
+        User_Data[user_id]['watermark']['map_audio'] = True
+        User_Data[user_id]['watermark']['map_sub'] = True
+        User_Data[user_id]['watermark']['map'] = True
         User_Data[user_id]['muxer'] = {}
         User_Data[user_id]['muxer']['preset'] = 'ultrafast'
         User_Data[user_id]['muxer']['use_crf'] = False
         User_Data[user_id]['muxer']['crf'] = '23'
+        User_Data[user_id]['muxer']['map_audio'] = True
+        User_Data[user_id]['muxer']['map_sub'] = True
+        User_Data[user_id]['muxer']['map'] = True
         User_Data[user_id]['muxer']['encode'] = True
         User_Data[user_id]['muxer']['encoder'] = 'libx265'
         User_Data[user_id]['compress'] = {}
         User_Data[user_id]['compress']['preset'] = 'ultrafast'
         User_Data[user_id]['compress']['crf'] = '23'
+        User_Data[user_id]['compress']['map_audio'] = True
+        User_Data[user_id]['compress']['map_sub'] = True
+        User_Data[user_id]['compress']['map'] = True
         User_Data[user_id]['compress']['encoder'] = 'libx265'
         User_Data[user_id]['compression'] = False
         User_Data[user_id]['select_stream'] = False
@@ -133,6 +142,10 @@ async def new_user(user_id):
         User_Data[user_id]['upload_tg'] = True
         User_Data[user_id]['rclone'] = False
         User_Data[user_id]['drive_name'] = False
+        User_Data[user_id]['merge'] = {}
+        User_Data[user_id]['merge']['map_audio'] = True
+        User_Data[user_id]['merge']['map_sub'] = True
+        User_Data[user_id]['merge']['map'] = True
         data = await db.add_datam(str(User_Data), CREDIT, "User_Data")
         return data
 

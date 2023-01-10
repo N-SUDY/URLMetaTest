@@ -78,6 +78,9 @@ async def update_message(message, input_vid, output_vid, preset, process_log, du
                         except:
                             position = watermark_position
                         process_options =  f"\n🥽WPosition: {str(position)}\n🛸WSize: {str(watermark_size)}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}"
+                elif modes['process_type'] == 'Compressing':
+                        map_sub = modes['map_sub']
+                        process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}\n🍓Map Sub: {str(map_sub)}"
                 else:
                         process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}"
                 if modes['files']>1:
@@ -106,7 +109,11 @@ async def update_message(message, input_vid, output_vid, preset, process_log, du
                     process_head = f"{str(process_name)}\n🎟️File: {name}"
                     ptext = f"🔴Cancel Task: `/cancel mp {str(process_id)}`"
                     process_foot = f"{str(ptext)}"
-                process_head = process_head + process_options + f"\n♒Preset: {preset}\n🧭Duration: {get_readable_time(duration)}\n💽IN Size: {str(get_human_size(getsize(input_vid)))}"
+                if modes['process_type'] != 'Merging':
+                        process_head = process_head + process_options + f"\n♒Preset: {preset}\n🧭Duration: {get_readable_time(duration)}\n💽IN Size: {str(get_human_size(getsize(input_vid)))}"
+                else:
+                        map_merge = modes['map'] 
+                        process_head = process_head + process_options + f"\n🍋Map: {str(map_merge)}\n♒Preset: {preset}\n🪁Total Files: {str(input_vid)}"
                 while True:
                         await assleep(7)
                         print(f"🔶Updating {modes['process_type']} Message", pid)
@@ -124,69 +131,74 @@ async def update_message(message, input_vid, output_vid, preset, process_log, du
                         if not checker:
                             print(f"🔶{modes['process_type']} Message Updater Has Completed")
                             break
-                        with open(process_log, 'r+') as file:
-                                                text = file.read()
-                                                frame = refindall("frame=(\d+)", text)
-                                                time_in_us=refindall("out_time_ms=(\d+)", text)
-                                                bitrate = refindall("bitrate=(\d+)", text)
-                                                fps = refindall("fps=(\d+)", text)
-                                                progress=refindall("progress=(\w+)", text)
-                                                speed=refindall("speed=(\d+\.?\d*)", text)
-                                                if len(frame):
-                                                    frame = int(frame[-1])
-                                                else:
-                                                    frame = 1;
-                                                if len(speed):
-                                                    speed = speed[-1]
-                                                else:
-                                                    speed = 1;
-                                                if len(time_in_us):
-                                                    time_in_us = time_in_us[-1]
-                                                else:
-                                                    time_in_us = 1;
-                                                if len(progress):
-                                                    if progress[-1] == "end":
-                                                        break
-                                                if len(bitrate):
-                                                    bitrate = bitrate[-1].strip()
-                                                else:
-                                                    bitrate = "0"
-                                                if len(fps):
-                                                    fps = fps[-1].strip()
-                                                else:
-                                                    fps = "0"
-                                                execution_time = get_readable_time(current_time - process_start_time)
-                                                elapsed_time = int(time_in_us)/1000000
-                                                out_time = get_readable_time(elapsed_time)
-                                                difference = mathfloor( (duration - elapsed_time) / float(speed) )
-                                                ETA = "-"
-                                                if difference > 0:
-                                                    ETA = get_readable_time(difference)
-                                                perc = f"{elapsed_time * 100 / duration:.1f}%"
-                                                progress_bars = get_progress_bar_string(elapsed_time, duration)
-                                                botupt = getbotuptime()
-                                                try:
-                                                        logs = all_data[-2] + "\n" + msg_data[-1]
-                                                except:
-                                                    logs = msg_data[-1]
-                                                if len(logs)>3000:
-                                                    logs = msg_data[-1]
-                                                ot_size = getsize(output_vid)
-                                                eta_raw = (ot_size/int(time_in_us))*duration
-                                                eta_size =get_human_size(eta_raw*1024*1024)
-                                                pro_bar = f"{str(process_head)}\n\n\n{progress_bars}\n\n ┌ 𝙿𝚛𝚘𝚐𝚛𝚎𝚜𝚜:【 {perc} 】\n ├ 𝚂𝚙𝚎𝚎𝚍:【 {speed}x 】\n ├ 𝙱𝚒𝚝𝚛𝚊𝚝𝚎:【 {bitrate}kbits/s 】\n ├ 𝙵𝙿𝚂:【 {fps} 】\n ├ 𝚁𝚎𝚖𝚊𝚒𝚗𝚒𝚗𝚐:【 {get_readable_time((duration - elapsed_time))} 】\n └ 𝙿𝚛𝚘𝚌𝚎𝚜𝚜𝚎𝚍:【 {str(out_time)} 】\n\n\n⚡️●●●● 𝙿𝚛𝚘𝚌𝚎𝚜𝚜 ●●●●⚡️\n\n⚙{str(logs)}\n\n\n💾OT Size: {str(get_human_size(ot_size))}\n🚂ETA Size: {str(eta_size)}\n⏰️ETA Time: {ETA}\n⛓EX Time: {str(execution_time)}\n{str(process_mid)}\n{str(get_stats())}\n♥️Bot Uptime: {str(botupt)}\n{str(process_foot)}"
-                                                if txt!=pro_bar:
-                                                        txt=pro_bar
-                                                        try:
-                                                            await message.edit(text=pro_bar)
-                                                        except FloodWait as e:
-                                                            await assleep(e.value)
-                                                        except Exception as e:
-                                                            print(e)
+                        execution_time = get_readable_time(current_time - process_start_time)
+                        botupt = getbotuptime()
+                        try:
+                                logs = all_data[-2] + "\n" + msg_data[-1]
+                        except:
+                            logs = msg_data[-1]
+                        if len(logs)>3000:
+                            logs = msg_data[-1]
+                        ot_size = getsize(output_vid)
+                        if modes['process_type'] != 'Merging':
+                                with open(process_log, 'r+') as file:
+                                                        text = file.read()
+                                                        frame = refindall("frame=(\d+)", text)
+                                                        time_in_us=refindall("out_time_ms=(\d+)", text)
+                                                        bitrate = refindall("bitrate=(\d+)", text)
+                                                        fps = refindall("fps=(\d+)", text)
+                                                        progress=refindall("progress=(\w+)", text)
+                                                        speed=refindall("speed=(\d+\.?\d*)", text)
+                                                        if len(frame):
+                                                            frame = int(frame[-1])
+                                                        else:
+                                                            frame = 1;
+                                                        if len(speed):
+                                                            speed = speed[-1]
+                                                        else:
+                                                            speed = 1;
+                                                        if len(time_in_us):
+                                                            time_in_us = time_in_us[-1]
+                                                        else:
+                                                            time_in_us = 1;
+                                                        if len(progress):
+                                                            if progress[-1] == "end":
+                                                                break
+                                                        if len(bitrate):
+                                                            bitrate = bitrate[-1].strip()
+                                                        else:
+                                                            bitrate = "0"
+                                                        if len(fps):
+                                                            fps = fps[-1].strip()
+                                                        else:
+                                                            fps = "0"
+                                                        elapsed_time = int(time_in_us)/1000000
+                                                        out_time = get_readable_time(elapsed_time)
+                                                        difference = mathfloor( (duration - elapsed_time) / float(speed) )
+                                                        ETA = "-"
+                                                        if difference > 0:
+                                                            ETA = get_readable_time(difference)
+                                                        perc = f"{elapsed_time * 100 / duration:.1f}%"
+                                                        progress_bars = get_progress_bar_string(elapsed_time, duration)
+                                                        eta_raw = (ot_size/int(time_in_us))*duration
+                                                        eta_size =get_human_size(eta_raw*1024*1024)
+                                                        pro_bar = f"{str(process_head)}\n\n\n{progress_bars}\n\n ┌ 𝙿𝚛𝚘𝚐𝚛𝚎𝚜𝚜:【 {perc} 】\n ├ 𝚂𝚙𝚎𝚎𝚍:【 {speed}x 】\n ├ 𝙱𝚒𝚝𝚛𝚊𝚝𝚎:【 {bitrate}kbits/s 】\n ├ 𝙵𝙿𝚂:【 {fps} 】\n ├ 𝚁𝚎𝚖𝚊𝚒𝚗𝚒𝚗𝚐:【 {get_readable_time((duration - elapsed_time))} 】\n └ 𝙿𝚛𝚘𝚌𝚎𝚜𝚜𝚎𝚍:【 {str(out_time)} 】\n\n\n⚡️●●●● 𝙿𝚛𝚘𝚌𝚎𝚜𝚜 ●●●●⚡️\n\n⚙{str(logs)}\n\n\n💾OT Size: {str(get_human_size(ot_size))}\n🚂ETA Size: {str(eta_size)}\n⏰️ETA Time: {ETA}\n⛓EX Time: {str(execution_time)}\n{str(process_mid)}\n{str(get_stats())}\n♥️Bot Uptime: {str(botupt)}\n{str(process_foot)}"
+                        else:
+                                pro_bar = f"{str(process_head)}\n\n\n⚡️●●●● 𝙿𝚛𝚘𝚌𝚎𝚜𝚜 ●●●●⚡️\n\n⚙{str(logs)}\n\n\n💾OT Size: {str(get_human_size(ot_size))}\n⛓EX Time: {str(execution_time)}\n{str(process_mid)}\n{str(get_stats())}\n♥️Bot Uptime: {str(botupt)}\n{str(process_foot)}"
+                        if txt!=pro_bar:
+                                txt=pro_bar
+                                try:
+                                    await message.edit(text=pro_bar)
+                                except FloodWait as e:
+                                    await assleep(e.value)
+                                except Exception as e:
+                                    print(e)
                 return
     except Exception as e:
         await message.edit(text=f'❌Error While Updating Message: {str(e)}')
         return
+    
+    
 
 
 #############Generating Screenshoot######################
