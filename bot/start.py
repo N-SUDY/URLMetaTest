@@ -321,7 +321,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                         await reply.edit("🔒Task Cancelled By User")
                                         return
                                 findex +=1
-                                infile_names += infile_names +f"file '{str(dl_loc)}'\n"
+                                infile_names += f"file '{str(dl_loc)}'\n"
                 try:
                         if download[0]:
                                 if muxing_type!='Merging':
