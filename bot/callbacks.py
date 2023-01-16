@@ -25,7 +25,7 @@ async def newbt(client, callback_query):
         # await callback_query.message.delete()
         
         
-        if txt.startswith("position_") or txt.startswith("size_") or txt.startswith("wpreset_") or txt.startswith("mpreset_") or txt.startswith("cpreset_") or txt.startswith("ccrp_") or txt.startswith("sstream_") or txt.startswith("autostream_") or txt.startswith("splitvideo_") or txt.startswith("splitsize_") or txt.startswith("uploadtg_") or txt.startswith("setrclone_"):
+        if txt.startswith("position_") or txt.startswith("size_") or txt.startswith("wpreset_") or txt.startswith("mpreset_") or txt.startswith("cpreset_") or txt.startswith("ccrp_") or txt.startswith("sstream_") or txt.startswith("autostream_") or txt.startswith("splitvideo_") or txt.startswith("splitsize_") or txt.startswith("uploadtg_") or txt.startswith("setrclone_") or txt.startswith("cthumb_"):
                 new_position = txt.split("_", 1)[1]
                 if txt.startswith("position_"):
                     await saveconfig(userx, 'watermark', 'position', new_position)
@@ -61,6 +61,12 @@ async def newbt(client, callback_query):
                     await saveoptions(userx, 'upload_tg', new_position)
                 elif txt.startswith("setrclone_"):
                     await saveoptions(userx, 'drive_name', new_position)
+                elif txt.startswith("cthumb_"):
+                    if new_position=="True":
+                        new_position = True
+                    else:
+                        new_position = False
+                    await saveoptions(userx, 'custom_thumbnail', new_position)
                 watermark_position = USER_DATA()[userx]['watermark']['position']
                 watermark_size = USER_DATA()[userx]['watermark']['size']
                 watermark_preset = USER_DATA()[userx]['watermark']['preset']
@@ -72,6 +78,7 @@ async def newbt(client, callback_query):
                 split = USER_DATA()[userx]['split']
                 upload_tg = USER_DATA()[userx]['upload_tg']
                 rclone = USER_DATA()[userx]['rclone']
+                custom_thumbnail = USER_DATA()[userx]['custom_thumbnail']
                 drive_name = USER_DATA()[userx]['drive_name']
                 positions = {'Set Top Left':"position_5:5", "Set Top Right": "position_main_w-overlay_w-5:5", "Set Bottom Left": "position_5:main_h-overlay_h", "Set Bottom Right": "position_main_w-overlay_w-5:main_h-overlay_h-5"}
                 sizes = [5,7,10,13,15,17,20,25,30,35,40,45]
@@ -235,6 +242,18 @@ async def newbt(client, callback_query):
                 for x in streams:
                     vlue = f"uploadtg_{str(x)}"
                     if upload_tg!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🔶Use Custom Thumb - {str(custom_thumbnail)}🔶", callback_data="lol-custv")])
+                st = []
+                for x in streams:
+                    vlue = f"cthumb_{str(x)}"
+                    if custom_thumbnail!=x:
                         datam = f"{str(x)}"
                     else:
                         datam = f"{str(x)} 🟢"
@@ -616,6 +635,181 @@ async def newbt(client, callback_query):
                 for x in streams:
                     vlue = f"mrgmap_{str(x)}"
                     if merge_map!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                try:
+                    await callback_query.message.edit(
+                        text="Settings",
+                        disable_web_page_preview=True,
+                        reply_markup=InlineKeyboardMarkup(KeyBoard))
+                except Exception as e:
+                    print(e)
+                return
+            
+            
+
+        elif txt.startswith("convert_") or txt.startswith("cquality_") or txt.startswith("cnvpreset_") or txt.startswith("usecnvcrf_") or txt.startswith("cnvcrf_") or txt.startswith("cnvsmap_") or txt.startswith("encodecnv_") or txt.startswith("encodercnv_"):
+                new_position = txt.split("_", 1)[1]
+                if txt.startswith("convert_"):
+                    await saveoptions(userx, 'convert_video', eval(new_position))
+                elif txt.startswith("cquality_"):
+                    await saveoptions(userx, 'convert_quality', eval(new_position))
+                elif txt.startswith("cnvpreset_"):
+                    await saveconfig(userx, 'convert', 'preset', new_position)
+                elif txt.startswith("usecnvcrf_"):
+                    if new_position=="True":
+                        new_position = True
+                    else:
+                        new_position = False
+                    await saveconfig(userx, 'convert', 'use_crf', new_position)
+                elif txt.startswith("cnvcrf_"):
+                        await saveconfig(userx, 'convert', 'crf', new_position)
+                elif txt.startswith("cnvsmap_"):
+                    if new_position=="True":
+                        new_position = True
+                    else:
+                        new_position = False
+                    await saveconfig(userx, 'convert', 'map', new_position)
+                elif txt.startswith("encodecnv_"):
+                    if new_position=="True":
+                        new_position = True
+                    else:
+                        new_position = False
+                    await saveconfig(userx, 'convert', 'encode', new_position)
+                elif txt.startswith("encodercnv_"):
+                        await saveconfig(userx, 'convert', 'encoder', new_position)
+                convert_video = USER_DATA()[userx]['convert_video']
+                convert_quality = USER_DATA()[userx]['convert_quality']
+                convert_preset = USER_DATA()[userx]['convert']['preset']
+                convert_crf = USER_DATA()[userx]['convert']['crf']
+                use_crf_convert = USER_DATA()[userx]['convert']['use_crf']
+                convert_map = USER_DATA()[userx]['convert']['map']
+                encode_convert = USER_DATA()[userx]['convert']['encode']
+                convert_encoder = USER_DATA()[userx]['convert']['encoder']
+                KeyBoard = []
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Convert Video - {str(convert_video)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"convert_{str(x)}"
+                    if convert_video!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [[720, 480],[720], [480]]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Convert Qualities - {str(convert_quality)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"cquality_{str(x)}"
+                    if convert_quality!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                KeyBoard.append([InlineKeyboardButton(f"🌸Convert Preset - {convert_preset}🌸", callback_data="lol-mpset")])
+                presets = ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow']
+                WX1 = []
+                WX2 = []
+                WX3 = []
+                zz = 1
+                for pp in presets:
+                    if convert_preset!=pp:
+                        datam = pp
+                    else:
+                        datam = f"{str(pp)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=f'cnvpreset_{str(pp)}')
+                    if zz<4:
+                            WX1.append(keyboard)
+                    elif zz<7:
+                            WX2.append(keyboard)
+                    else:
+                            WX3.append(keyboard)
+                    zz+=1
+                KeyBoard.append(WX1)
+                KeyBoard.append(WX2)
+                KeyBoard.append(WX3)
+                crfs = [0, 3, 6, 9, 12, 15, 18, 21, 23, 24, 27, 28, 30, 33, 36, 39, 42, 45, 48, 51]
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Use Convert CRF - {str(use_crf_convert)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"usecnvcrf_{str(x)}"
+                    if use_crf_convert!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                KeyBoard.append([InlineKeyboardButton(f"🌸Convert CRF - {convert_crf}🌸", callback_data="lol-wcrf")])
+                CCRP1 = []
+                CCRP2 = []
+                CCRP3 = []
+                CCRP4 = []
+                CCRP5 = []
+                zz = 1
+                for x in crfs:
+                    vlue = f"cnvcrf_{str(x)}"
+                    if int(convert_crf)!=int(x):
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    if zz<5:
+                            CCRP1.append(keyboard)
+                    elif zz<9:
+                            CCRP2.append(keyboard)
+                    elif zz<13:
+                            CCRP3.append(keyboard)
+                    elif zz<17:
+                        CCRP4.append(keyboard)
+                    else:
+                        CCRP5.append(keyboard)
+                    zz+=1
+                KeyBoard.append(CCRP1)
+                KeyBoard.append(CCRP2)
+                KeyBoard.append(CCRP3)
+                KeyBoard.append(CCRP4)
+                KeyBoard.append(CCRP5)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Map Converted Subs - {str(convert_map)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"cnvsmap_{str(x)}"
+                    if convert_map!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Encode Converted Video - {str(encode_convert)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encodecnv_{str(x)}"
+                    if encode_convert!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = ['libx265', 'libx264']
+                KeyBoard.append([InlineKeyboardButton(f"🌸WaterMark Encoder - {str(convert_encoder)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encodercnv_{str(x)}"
+                    if convert_encoder!=x:
                         datam = f"{str(x)}"
                     else:
                         datam = f"{str(x)} 🟢"

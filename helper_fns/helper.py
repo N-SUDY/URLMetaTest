@@ -146,6 +146,16 @@ async def new_user(user_id):
         User_Data[user_id]['merge']['map_audio'] = True
         User_Data[user_id]['merge']['map_sub'] = True
         User_Data[user_id]['merge']['map'] = True
+        User_Data[user_id]['custom_thumbnail'] = False
+        User_Data[user_id]['convert_video'] = False
+        User_Data[user_id]['convert_quality'] = [720, 480]
+        User_Data[user_id]['convert'] = {}
+        User_Data[user_id]['convert']['preset'] = 'ultrafast'
+        User_Data[user_id]['convert']['use_crf'] = False
+        User_Data[user_id]['convert']['crf'] = '23'
+        User_Data[user_id]['convert']['map'] = True
+        User_Data[user_id]['convert']['encode'] = True
+        User_Data[user_id]['convert']['encoder'] = 'libx265'
         data = await db.add_datam(str(User_Data), CREDIT, "User_Data")
         return data
 

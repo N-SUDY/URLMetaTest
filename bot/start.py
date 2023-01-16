@@ -39,6 +39,11 @@ async def send_tg_video(bot, user_id, final_video_list, cc_options, duration, fi
                                         datam.append(f" [{str(z)}/{str(total)}]")
                                         cc = f"{str(vname)}\n\n{str(cc_options)}"
                                         print("🔶Starting Video Upload", vname)
+                                        duration = 0
+                                        try:
+                                                duration = int(durationx(final_video))
+                                        except:
+                                                pass
                                         try:
                                                 the_media = await bot.send_video(
                                                                 chat_id=user_id,
@@ -102,10 +107,13 @@ async def download_tg_file(bot, m, dl_loc, reply, start_time, datam, modes):
 ###########Upload Drve#############
 
 
-async def upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx, r_config, output_vid, ename):
+async def upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx, r_config, output_vids, ename):
+                        total = len(output_vids)
+                        q = 1
+                        for output_vid in output_vids:
                                 try:
                                                         modes['process_type'] = 'Rclone Uploading'
-                                                        datam = [file_name, '❣Uploading To Drive', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
+                                                        datam = [f"{file_name} [{str(q)}/{str(total)}]", '❣Uploading To Drive', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
                                                         drive_name = USER_DATA()[userx]['drive_name']
                                                         command =  [ "rclone",
                                                                                         "copy",
@@ -143,7 +151,8 @@ async def upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx,
                                                                         await bot.send_message(user_id, text)
                                 except Exception as e:
                                         await bot.send_message(user_id, f"❌Error While Uploading To Drive\n\n{str(e)}")
-                                return
+                                q+=1
+                        return
 
 ###########Split File##############
 async def split_video_file(bot, user_id, reply, split_size, dirpath, file, file_name, progress, duration, datam, modes):
@@ -194,6 +203,89 @@ async def split_video_file(bot, user_id, reply, split_size, dirpath, file, file_
                 return [False]
 
 
+
+async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_name, Wdir, mptime):
+                trash_list = []
+                convert_qualitys = USER_DATA()[userx]['convert_quality']
+                cin = 1
+                vin = 1
+                ctot = len(convert_qualitys)
+                vtot = len(final_video)
+                csend = []
+                for convert_quality in convert_qualitys:
+                        for cvideo in final_video:
+                                base_name, extension = splitext(cvideo)
+                                current_quality = str(convert_quality)
+                                modes['current_quality'] = current_quality
+                                ename = f'{str(current_quality)}_{str(userx)}_{str(file_name)}{extension}'
+                                progress = f"{Wdir}/{str(ename)}_progress.txt"
+                                await create_process_file(progress)
+                                convert_vid = f"{Wdir}/{ename}"
+                                trash_list.append(convert_vid)
+                                preset =  USER_DATA()[userx]['convert']['preset']
+                                convert_crf = USER_DATA()[userx]['convert']['crf']
+                                use_crf = USER_DATA()[userx]['convert']['use_crf']
+                                map_sub = USER_DATA()[userx]['convert']['map']
+                                if use_crf:
+                                        modes['crf'] = convert_crf
+                                else:
+                                        modes['crf'] = 'False'
+                                encode = USER_DATA()[userx]['convert']['encode']
+                                process_name = f'🌸Converting Video [{str(current_quality)}] ({str(cin)}/{str(ctot)})'
+                                if map_sub:
+                                        modes['map_sub'] = 'True'
+                                        command = ['ffmpeg','-hide_banner',
+                                                                '-progress', progress, '-i', cvideo,
+                                                                '-vf', f"scale=-2:{current_quality}",
+                                                                '-map','0:v',
+                                                                '-map','0:a',
+                                                                "-map", "0:s?",
+                                                                '-preset', preset]
+                                else:
+                                        modes['map_sub'] = 'False'
+                                        command = ['ffmpeg','-hide_banner',
+                                                                '-progress', progress, '-i', cvideo,
+                                                                '-vf', f"scale=-2:{current_quality}",
+                                                                '-map','0:v',
+                                                                '-map','0:a',
+                                                                '-preset', preset]
+                                if encode:
+                                        encoder = USER_DATA()[userx]['convert']['encoder']
+                                        modes['encoder'] = encoder
+                                        if encoder=='libx265':
+                                                c_mid = ['-vcodec','libx265', '-vtag', 'hvc1']
+                                        else:
+                                                c_mid = ['-vcodec','libx264']
+                                else:
+                                        modes['encoder'] = "False"
+                                        c_mid = ['-c:a','copy']
+                                if use_crf:
+                                        command = command + c_mid + ['-crf',f'{str(convert_crf)}', "-y", convert_vid]
+                                else:
+                                        command = command + c_mid + ["-y", convert_vid]
+                                await delete_trash(convert_vid)
+                                datam = (f"{file_name} ({str(vin)}/{str(vtot)})", process_name, mptime)
+                                modes['process_type'] = "Converting"
+                                duration = 0
+                                try:
+                                        duration = int(durationx(cvideo))
+                                except:
+                                        pass
+                                print(command)
+                                try:
+                                        cresult = await ffmpeg_engine(bot, user_id, reply, command, cvideo, convert_vid, preset, progress, duration, datam, modes)
+                                        if cresult[0]:
+                                                if cresult[1]:
+                                                        return [False, trash_list]
+                                                else:
+                                                        csend.append(convert_vid)
+                                except Exception as e:
+                                        print(e)
+                                vin +=1
+                        cin+=1
+                return [True, trash_list, csend]
+
+
 ##########Processor################
 async def processor(bot, message, muxing_type, *process_options):
                 user_id = message.chat.id
@@ -204,6 +296,7 @@ async def processor(bot, message, muxing_type, *process_options):
                 Sdir = f'./{str(userx)}_Split'
                 await make_direc(Ddir)
                 await make_direc(Wdir)
+                convert_video = USER_DATA()[userx]['convert_video']
                 process_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
                 if muxing_type!='Merging':
                                 try:
@@ -229,25 +322,26 @@ async def processor(bot, message, muxing_type, *process_options):
                                         await ask.request.delete()
                 else:
                         file_id = process_options[0]
-                custom_thumb = False
-                try:
-                        ask = await bot.ask(user_id, f'*️⃣ Send Me Thumbnail For This Video\n\n🔷Send `pass` for default Thumbnail\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.photo | filters.text))
-                        thumb = ask.id
-                        if ask.photo or (ask.document and ask.document.mime_type.startswith("image/")):
-                                thumbm = await bot.get_messages(user_id, thumb, replies=0)
-                                thumb_name = process_id
-                                thumb_loc = f'{Ddir}/{str(userx)}_{str(thumb_name)}.jpg'
-                                trash_list.append(thumb_loc)
-                                thumb_download = await bot.download_media(thumbm, thumb_loc)
-                                if thumb_download is None:
-                                        await delete_trash(thumb_loc)
-                                        await  bot.send_message(chat_id=user_id,
-                                                        text=f"❌Failed To Download Thumbnail, Default Thumbnail Will Be Used Now")
-                                else:
-                                        custom_thumb = True
-                except Exception as e:
-                                print(e)
-                                await bot.send_message(user_id, "🔃Timed Out Or Some Error Occured! Tasked Has Been Cancelled.\nDefault Thumbnail Will Be Used Now")
+                custom_thumb = USER_DATA()[userx]['custom_thumbnail']
+                if custom_thumb:
+                                try:
+                                        ask = await bot.ask(user_id, f'*️⃣ Send Me Thumbnail For This Video\n\n🔷Send `pass` for default Thumbnail\n⏳Request Time Out In 60 Seconds', timeout=60, filters=(filters.document | filters.photo | filters.text))
+                                        thumb = ask.id
+                                        if ask.photo or (ask.document and ask.document.mime_type.startswith("image/")):
+                                                thumbm = await bot.get_messages(user_id, thumb, replies=0)
+                                                thumb_name = process_id
+                                                thumb_loc = f'{Ddir}/{str(userx)}_{str(thumb_name)}.jpg'
+                                                trash_list.append(thumb_loc)
+                                                thumb_download = await bot.download_media(thumbm, thumb_loc)
+                                                if thumb_download is None:
+                                                        await delete_trash(thumb_loc)
+                                                        await  bot.send_message(chat_id=user_id,
+                                                                        text=f"❌Failed To Download Thumbnail, Default Thumbnail Will Be Used Now")
+                                                else:
+                                                        custom_thumb = True
+                                except Exception as e:
+                                                print(e)
+                                                await bot.send_message(user_id, "🔃Timed Out Or Some Error Occured! Tasked Has Been Cancelled.\nDefault Thumbnail Will Be Used Now")
                 print("🎨Process Type", muxing_type)
                 if muxing_type not in ['Watermark', 'Compressing', 'Merging']:
                         try:
@@ -630,6 +724,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                         if wresult[1]:
                                                 await clear_trash_list(trash_list)
                                                 await reply.edit("🔒Task Cancelled By User")
+                                                return
                                         else:
                                                 if muxing_type=='Merging':
                                                         duration = 0
@@ -691,6 +786,15 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                                                         else:
                                                                                                                 trash_list = trash_list + sresult[2]
                                                                                                                 final_video = sresult[2]
+                                                                if convert_video:
+                                                                        convert_result = await convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_name, Wdir, mptime)
+                                                                        if not convert_result[0]:
+                                                                                trash_list = trash_list + convert_result[1]
+                                                                                await clear_trash_list(trash_list)
+                                                                                await reply.edit("🔒Task Cancelled By User")
+                                                                                return
+                                                                        else:
+                                                                                final_video = final_video + convert_result[2]
                                                                 if not custom_thumb:
                                                                         final_thumb = './thumb.jpg'
                                                                 else:
@@ -721,7 +825,17 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                                         else:
                                                                                                 await bot.send_message(user_id, "❗Failed to upload video as file size is greater than 2gb.")
                                                 else:
-                                                        upload = await upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx, r_config, output_vid, ename)
+                                                        final_video = [output_vid]
+                                                        if convert_video:
+                                                                        convert_result = await convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_name, Wdir, mptime)
+                                                                        if not convert_result[0]:
+                                                                                trash_list = trash_list + convert_result[1]
+                                                                                await clear_trash_list(trash_list)
+                                                                                await reply.edit("🔒Task Cancelled By User")
+                                                                                return
+                                                                        else:
+                                                                                final_video = final_video + convert_result[2]
+                                                        upload = await upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx, r_config, final_video, ename)
                                                 check_data = [[process_id, get_master_process()]]
                                                 checker = await process_checker(check_data)
                                                 if not checker:
@@ -1443,6 +1557,7 @@ async def settings(client, message):
                 split = USER_DATA()[userx]['split']
                 upload_tg = USER_DATA()[userx]['upload_tg']
                 rclone = USER_DATA()[userx]['rclone']
+                custom_thumbnail = USER_DATA()[userx]['custom_thumbnail']
                 drive_name = USER_DATA()[userx]['drive_name']
                 positions = {'Set Top Left':"position_5:5", "Set Top Right": "position_main_w-overlay_w-5:5", "Set Bottom Left": "position_5:main_h-overlay_h", "Set Bottom Right": "position_main_w-overlay_w-5:main_h-overlay_h-5"}
                 sizes = [5,7,10,13,15,17,20,25,30,35,40,45]
@@ -1606,6 +1721,18 @@ async def settings(client, message):
                 for x in streams:
                     vlue = f"uploadtg_{str(x)}"
                     if upload_tg!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🔶Use Custom Thumb - {str(custom_thumbnail)}🔶", callback_data="lol-custv")])
+                st = []
+                for x in streams:
+                    vlue = f"cthumb_{str(x)}"
+                    if custom_thumbnail!=x:
                         datam = f"{str(x)}"
                     else:
                         datam = f"{str(x)} 🟢"
@@ -2011,6 +2138,157 @@ async def map_fns(client, message):
                 for x in streams:
                     vlue = f"mrgmap_{str(x)}"
                     if merge_map!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                await message.reply_text(
+                        text="Settings",
+                        disable_web_page_preview=True,
+                        reply_markup= InlineKeyboardMarkup(KeyBoard)
+                        )
+                return
+
+
+@Client.on_message(filters.command(["convertoptions"]))
+async def convert_fns(client, message):
+                user_id = message.chat.id
+                userx = message.from_user.id
+                if userx not in USER_DATA():
+                        await new_user(userx)
+                if userx not in sudo_users:
+                                await client.send_message(user_id, "❌Not Authorized")
+                                return
+                convert_video = USER_DATA()[userx]['convert_video']
+                convert_quality = USER_DATA()[userx]['convert_quality']
+                convert_preset = USER_DATA()[userx]['convert']['preset']
+                convert_crf = USER_DATA()[userx]['convert']['crf']
+                use_crf_convert = USER_DATA()[userx]['convert']['use_crf']
+                convert_map = USER_DATA()[userx]['convert']['map']
+                encode_convert = USER_DATA()[userx]['convert']['encode']
+                convert_encoder = USER_DATA()[userx]['convert']['encoder']
+                KeyBoard = []
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Convert Video - {str(convert_video)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"convert_{str(x)}"
+                    if convert_video!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [[720, 480],[720], [480]]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Convert Qualities - {str(convert_quality)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"cquality_{str(x)}"
+                    if convert_quality!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                KeyBoard.append([InlineKeyboardButton(f"🌸Convert Preset - {convert_preset}🌸", callback_data="lol-mpset")])
+                presets = ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow']
+                WX1 = []
+                WX2 = []
+                WX3 = []
+                zz = 1
+                for pp in presets:
+                    if convert_preset!=pp:
+                        datam = pp
+                    else:
+                        datam = f"{str(pp)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=f'cnvpreset_{str(pp)}')
+                    if zz<4:
+                            WX1.append(keyboard)
+                    elif zz<7:
+                            WX2.append(keyboard)
+                    else:
+                            WX3.append(keyboard)
+                    zz+=1
+                KeyBoard.append(WX1)
+                KeyBoard.append(WX2)
+                KeyBoard.append(WX3)
+                crfs = [0, 3, 6, 9, 12, 15, 18, 21, 23, 24, 27, 28, 30, 33, 36, 39, 42, 45, 48, 51]
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Use Convert CRF - {str(use_crf_convert)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"usecnvcrf_{str(x)}"
+                    if use_crf_convert!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                KeyBoard.append([InlineKeyboardButton(f"🌸Convert CRF - {convert_crf}🌸", callback_data="lol-wcrf")])
+                CCRP1 = []
+                CCRP2 = []
+                CCRP3 = []
+                CCRP4 = []
+                CCRP5 = []
+                zz = 1
+                for x in crfs:
+                    vlue = f"cnvcrf_{str(x)}"
+                    if int(convert_crf)!=int(x):
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    if zz<5:
+                            CCRP1.append(keyboard)
+                    elif zz<9:
+                            CCRP2.append(keyboard)
+                    elif zz<13:
+                            CCRP3.append(keyboard)
+                    elif zz<17:
+                        CCRP4.append(keyboard)
+                    else:
+                        CCRP5.append(keyboard)
+                    zz+=1
+                KeyBoard.append(CCRP1)
+                KeyBoard.append(CCRP2)
+                KeyBoard.append(CCRP3)
+                KeyBoard.append(CCRP4)
+                KeyBoard.append(CCRP5)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Map Converted Subs - {str(convert_map)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"cnvsmap_{str(x)}"
+                    if convert_map!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🌸Encode Converted Video - {str(encode_convert)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encodecnv_{str(x)}"
+                    if encode_convert!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = ['libx265', 'libx264']
+                KeyBoard.append([InlineKeyboardButton(f"🌸WaterMark Encoder - {str(convert_encoder)}🌸", callback_data="lol-s")])
+                st = []
+                for x in streams:
+                    vlue = f"encodercnv_{str(x)}"
+                    if convert_encoder!=x:
                         datam = f"{str(x)}"
                     else:
                         datam = f"{str(x)} 🟢"
