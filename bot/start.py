@@ -756,7 +756,8 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                                         else:
                                                                                                 if USER:
                                                                                                         try:
-                                                                                                                premium = USER.get_me().is_premium
+                                                                                                                User_Data = await USER.get_me()
+                                                                                                                premium = User_Data.is_premium
                                                                                                                 if premium:
                                                                                                                         use_premium = True
                                                                                                                         split_size = 4194304000
@@ -818,7 +819,9 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                                                 await bot.send_message(user_id, "❗Can't Upload! File Size Greater Than 4GB and No Rclone Config Found")
                                                                                 else:
                                                                                         if USER:
-                                                                                                if USER.get_me().is_premium:
+                                                                                                User_Data = await USER.get_me()
+                                                                                                if User_Data.is_premium:
+                                                                                                        user_reply = await USER.send_message(chat_id=user_id, text=f"🔶File Size Greater Than 2GB, Using User Account To Upload.")
                                                                                                         upload = await send_tg_video(USER, user_id, final_video, cc, duration, final_thumb, user_reply, start_time, datam, modes)
                                                                                                 else:
                                                                                                         await bot.send_message(user_id, "❗Failed to upload video as file size is greater than 2gb and user account don't have telegram premium.")
@@ -898,6 +901,7 @@ async def timecmd(client, message):
         return
 
 
+    
 # ##############Req######################
 # @Client.on_message(filters.command(["add"]))
 # async def add(client, message):
