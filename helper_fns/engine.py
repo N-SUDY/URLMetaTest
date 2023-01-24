@@ -80,7 +80,7 @@ async def update_message(message, input_vid, output_vid, preset, process_log, du
                         process_options =  f"\n🥽WPosition: {str(position)}\n🛸WSize: {str(watermark_size)}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}"
                 elif modes['process_type'] == 'Compressing' or modes['process_type'] == 'Converting':
                         map_sub = modes['map_sub']
-                        process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}\n🍓Map Sub: {str(map_sub)}"
+                        process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}\n🍓Copy Sub: {str(map_sub)}"
                 else:
                         process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}"
                 if modes['files']>1:

@@ -520,11 +520,11 @@ async def processor(bot, message, muxing_type, *process_options):
                                                         c_mid = ['-vcodec','libx264']
                                         else:
                                                 modes['encoder'] = "False"
-                                                c_mid = ['-codec:a','copy']
+                                                c_mid = ['-c:a','copy']
                                         if use_crf:
-                                                command = command + c_mid + ['-crf',f'{str(watermark_crf)}', "-y", output_vid]
+                                                command = command + c_mid + ['-crf',f'{str(watermark_crf)}', "-c:s", "copy", "-y", output_vid]
                                         else:
-                                                command = command + c_mid + ["-y", output_vid]
+                                                command = command + c_mid + ["-c:s", "copy","-y", output_vid]
                                         print(command)
                                 elif muxing_type == 'HardMux':
                                         ename = f'{str(userx)}_{str(file_name)}_({str(muxing_type)}).mp4'
@@ -647,14 +647,14 @@ async def processor(bot, message, muxing_type, *process_options):
                                         modes['crf'] = compress_crf
                                         compress_sub_map = USER_DATA()[userx]['compress']['map_sub']
                                         if compress_sub_map:
-                                                modes['map_sub'] = 'True'
+                                                modes['map_sub'] = 'False'
                                                 command = ['ffmpeg','-hide_banner',
                                                                         '-progress', progress, '-i', the_media,
                                                                         '-map','0:v?',
                                                                         '-map',f'{str(map)}?',
                                                                         "-map", "0:s?"]
                                         else:
-                                                modes['map_sub'] = 'False'
+                                                modes['map_sub'] = 'True'
                                                 command = ['ffmpeg','-hide_banner',
                                                                         '-progress', progress, '-i', the_media,
                                                                         '-map','0:v?',
