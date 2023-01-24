@@ -25,7 +25,7 @@ async def newbt(client, callback_query):
         # await callback_query.message.delete()
         
         
-        if txt.startswith("position_") or txt.startswith("size_") or txt.startswith("wpreset_") or txt.startswith("mpreset_") or txt.startswith("cpreset_") or txt.startswith("ccrp_") or txt.startswith("sstream_") or txt.startswith("autostream_") or txt.startswith("splitvideo_") or txt.startswith("splitsize_") or txt.startswith("uploadtg_") or txt.startswith("setrclone_") or txt.startswith("cthumb_"):
+        if txt.startswith("position_") or txt.startswith("cname_") or txt.startswith("cmdata_") or txt.startswith("size_") or txt.startswith("wpreset_") or txt.startswith("mpreset_") or txt.startswith("cpreset_") or txt.startswith("ccrp_") or txt.startswith("sstream_") or txt.startswith("autostream_") or txt.startswith("splitvideo_") or txt.startswith("splitsize_") or txt.startswith("uploadtg_") or txt.startswith("setrclone_") or txt.startswith("cthumb_"):
                 new_position = txt.split("_", 1)[1]
                 if txt.startswith("position_"):
                     await saveconfig(userx, 'watermark', 'position', new_position)
@@ -65,6 +65,12 @@ async def newbt(client, callback_query):
                     else:
                         new_position = False
                     await saveoptions(userx, 'custom_name', new_position)
+                elif txt.startswith("cmdata_"):
+                    if new_position=="True":
+                        new_position = True
+                    else:
+                        new_position = False
+                    await saveoptions(userx, 'custom_metadata', new_position)
                 elif txt.startswith("setrclone_"):
                     await saveoptions(userx, 'drive_name', new_position)
                 elif txt.startswith("cthumb_"):
@@ -84,6 +90,7 @@ async def newbt(client, callback_query):
                 split = USER_DATA()[userx]['split']
                 upload_tg = USER_DATA()[userx]['upload_tg']
                 rclone = USER_DATA()[userx]['rclone']
+                custom_metadata = USER_DATA()[userx]['custom_metadata']
                 custom_thumbnail = USER_DATA()[userx]['custom_thumbnail']
                 drive_name = USER_DATA()[userx]['drive_name']
                 custom_name = USER_DATA()[userx]['custom_name']
@@ -273,6 +280,18 @@ async def newbt(client, callback_query):
                 for x in streams:
                     vlue = f"cname_{str(x)}"
                     if custom_name!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🔶Change MetaData- {str(custom_metadata)}🔶", callback_data="lol-custn")])
+                st = []
+                for x in streams:
+                    vlue = f"cmdata_{str(x)}"
+                    if custom_metadata!=x:
                         datam = f"{str(x)}"
                     else:
                         datam = f"{str(x)} 🟢"

@@ -231,6 +231,25 @@ async def take_screen_shot(video_file, output_directory, ttl):
         return out_put_file_name
     else:
         return None
+    
+
+##############Run CMD##################
+async def run_process_command(command):
+    try:
+        process = await create_subprocess_exec(
+            *command,
+            stdout=asyncioPIPE,
+            stderr=asyncioPIPE,
+            )
+        await process.communicate()
+        return_code = process.returncode
+        if return_code == 0:
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(e)
+        return False
 
 
 ###################FFMPEG Engine#############################

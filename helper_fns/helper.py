@@ -157,6 +157,7 @@ async def new_user(user_id):
         User_Data[user_id]['convert']['encode'] = True
         User_Data[user_id]['convert']['encoder'] = 'libx265'
         User_Data[user_id]['custom_name'] = False
+        User_Data[user_id]['custom_metadata'] = False
         data = await db.add_datam(str(User_Data), CREDIT, "User_Data")
         return data
 

@@ -10,7 +10,7 @@ from pyrogram.errors import FloodWait
 from helper_fns.process import append_master_process, remove_master_process, get_master_process, append_sub_process, remove_sub_process, get_sub_process
 from os import execl
 from sys import argv, executable
-from helper_fns.engine import ffmpeg_engine, upload_rclone
+from helper_fns.engine import ffmpeg_engine, upload_rclone, run_process_command
 from helper_fns.progress_bar import progress_bar
 from helper_fns.helper import execute
 from json import loads
@@ -215,7 +215,7 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                                 base_name, extension = splitext(cvideo)
                                 current_quality = str(convert_quality)
                                 modes['current_quality'] = current_quality
-                                ename = f'{str(current_quality)}_{str(userx)}_{str(file_name)}{extension}'
+                                ename = f'{str(current_quality)}_{str(file_name)}{extension}'
                                 progress = f"{Wdir}/{str(ename)}_progress.txt"
                                 await create_process_file(progress)
                                 convert_vid = f"{Wdir}/{ename}"
@@ -284,6 +284,8 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                 return [True, trash_list, csend]
 
 
+
+
 ##########Processor################
 async def processor(bot, message, muxing_type, *process_options):
                 user_id = message.chat.id
@@ -295,6 +297,8 @@ async def processor(bot, message, muxing_type, *process_options):
                 await make_direc(Ddir)
                 await make_direc(Wdir)
                 convert_video = USER_DATA()[userx]['convert_video']
+                custom_name = USER_DATA()[userx]['custom_name']
+                custom_metadata = USER_DATA()[userx]['custom_metadata']
                 process_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
                 if muxing_type!='Merging':
                                 try:
@@ -378,6 +382,22 @@ async def processor(bot, message, muxing_type, *process_options):
                 findex = 1
                 ftotal = len(file_id)
                 infile_names = ''
+                custom_final_name = False
+                if custom_name:
+                        try:
+                                ask = await bot.ask(user_id, f'*️⃣Send Me File Name\n\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.text)
+                                custom_final_name = str(ask.text)
+                        except:
+                                        await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
+                                        return
+                custom_metadata_title = False
+                if custom_name:
+                        try:
+                                ask = await bot.ask(user_id, f'*️⃣Send Me MetaData Title Name\n\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.text)
+                                custom_metadata_title = str(ask.text)
+                        except:
+                                        await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
+                                        return
                 reply = await bot.send_message(chat_id=user_id,
                                                         text=f"🔽Starting Download")
                 for fid in file_id:
@@ -400,7 +420,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 file_name = file_name.replace(ele, '')
                                 date_now = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
                                 file_name = f'{str(date_now)} {str(file_name)}'
-                                dl_loc = f'{Ddir}/{str(userx)}_{str(file_name)}'
+                                dl_loc = f'{Ddir}/{str(file_name)}'
                                 trash_list.append(dl_loc)
                                 start_time = timex()
                                 modes = {'files': 1, 'process_id': process_id}
@@ -414,11 +434,26 @@ async def processor(bot, message, muxing_type, *process_options):
                                         return
                                 findex +=1
                                 infile_names += f"file '{str(dl_loc)}'\n"
+                if custom_metadata_title:
+                        output_meta = f"(MetaData) {str(file_name)}"
+                        trash_list.append(output_meta)
+                        cmd_meta = ["ffmpeg", "-i", {dl_loc}, f"-metadata:s:a title='{custom_metadata_title}'", f"-metadata:s:s title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
+                        met_result = await run_process_command(cmd_meta)
+                        if not met_result:
+                                cmd_meta = ["ffmpeg", "-i", {dl_loc}, f"-metadata:s:a title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
+                                met_result = await run_process_command(cmd_meta)
+                        if not met_result:
+                                cmd_meta = ["ffmpeg", "-i", {dl_loc}, f"-metadata:s:s title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
+                                met_result = await run_process_command(cmd_meta)
+                        if met_result:
+                                await delete_trash(dl_loc)
+                                dl_loc = output_meta
+                if custom_final_name:
+                        file_name = custom_final_name
                 try:
                         if download[0]:
                                 if muxing_type!='Merging':
-                                        the_media = download[1]
-                                        trash_list.append(the_media)
+                                        the_media = dl_loc
                                         select_stream = USER_DATA()[userx]['select_stream']
                                         language = USER_DATA()[userx]['stream']
                                         if select_stream:
@@ -488,10 +523,10 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 duration = int(durationx(the_media))
                                         except:
                                                 pass
-                                progress = f"{Wdir}/{str(userx)}_{str(file_name)}_progress.txt"
+                                progress = f"{Wdir}/{str(file_name)}_progress.txt"
                                 await create_process_file(progress)
                                 if muxing_type=='Watermark':
-                                        ename = f'{str(userx)}_{str(file_name)}'
+                                        ename = f'{str(file_name)}'
                                         output_vid = f"{Wdir}/{ename}"
                                         preset = USER_DATA()[userx]['watermark']['preset']
                                         watermark_position = USER_DATA()[userx]['watermark']['position']
@@ -525,7 +560,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 command = command + c_mid + ["-c:s", "copy","-y", output_vid]
                                         print(command)
                                 elif muxing_type == 'HardMux':
-                                        ename = f'{str(userx)}_{str(file_name)}_({str(muxing_type)}).mp4'
+                                        ename = f'{str(file_name)}_({str(muxing_type)}).mp4'
                                         output_vid = f"{Wdir}/{ename}"
                                         preset =  USER_DATA()[userx]['muxer']['preset']
                                         muxer_crf = USER_DATA()[userx]['muxer']['crf']
@@ -558,7 +593,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 command = command + c_mid + ["-y", output_vid]
                                         print(command)
                                 elif muxing_type == 'SoftMux':
-                                        ename = f'{str(userx)}_{str(file_name)}_({str(muxing_type)}).mkv'
+                                        ename = f'{str(file_name)}_({str(muxing_type)}).mkv'
                                         output_vid = f"{Wdir}/{ename}"
                                         preset =  USER_DATA()[userx]['muxer']['preset']
                                         muxer_crf = USER_DATA()[userx]['muxer']['crf']
@@ -597,7 +632,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                         command = command + c_mid + ["-y", output_vid]
                                         print(command)
                                 elif muxing_type == 'SoftReMux':
-                                        ename = f'{str(userx)}_{str(file_name)}_({str(muxing_type)}).mkv'
+                                        ename = f'{str(file_name)}_({str(muxing_type)}).mkv'
                                         output_vid = f"{Wdir}/{ename}"
                                         preset =  USER_DATA()[userx]['muxer']['preset']
                                         muxer_crf = USER_DATA()[userx]['muxer']['crf']
@@ -635,7 +670,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                         command = command + c_mid + ["-y", output_vid]
                                         print(command)
                                 elif muxing_type=='Compressing':
-                                        ename = f'{str(userx)}_{str(file_name)}.mkv'
+                                        ename = f'{str(file_name)}.mkv'
                                         output_vid = f"{Wdir}/{ename}"
                                         preset =  USER_DATA()[userx]['compress']['preset']
                                         compress_crf = USER_DATA()[userx]['compress']['crf']
@@ -672,7 +707,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                         zxx = open(input_file, "w", encoding="utf-8")
                                         zxx.write(str(infile_names.strip()))
                                         zxx.close()
-                                        ename = f'{str(userx)}_{str(file_name)}.mkv'
+                                        ename = f'{str(file_name)}.mkv'
                                         output_vid = f"{Wdir}/{ename}"
                                         preset =  'False'
                                         compress_crf = 'False'
@@ -1227,7 +1262,7 @@ async def mergevideo(client, message):
 #                                 m = await bot.get_messages(chat_id, vid, replies=0)
 #                                 media = get_media(m)
 #                                 file_name = media.file_name.replace(' ', '')
-#                                 dl_loc = f'{Ddir}/{str(userx)}_{str(file_name)}'
+#                                 dl_loc = f'{Ddir}/{str(file_name)}'
 #                                 start_time = timex()
 #                                 datam = (file_name, f"{str(countx)}/{str(limit_to-limit)}", remnx, '🔽Downloading Video', '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', stime, mtime, len(failed), len(cancelled), len(wfailed), len(mfailed))
 #                                 reply = await bot.send_message(chat_id=user_id,
@@ -1292,8 +1327,8 @@ async def mergevideo(client, message):
 #                                         duration = int(durationx(the_media))
 #                                 except:
 #                                         pass
-#                                 output_vid = f"{Wdir}/{str(userx)}_{str(file_name)}"
-#                                 progress = f"{Wdir}/{str(userx)}_{str(file_name)}_progress.txt"
+#                                 output_vid = f"{Wdir}/{str(file_name)}"
+#                                 progress = f"{Wdir}/{str(file_name)}_progress.txt"
 #                                 await create_process_file(progress)
 #                                 await delete_trash(output_vid)
 #                                 preset = USER_DATA()[userx]['watermark']['preset']
@@ -1371,13 +1406,13 @@ async def mergevideo(client, message):
 #                                                 remux_preset =  USER_DATA()[userx]['muxer']['preset']
 #                                                 await create_process_file(progress)
 #                                                 if sub_mode=="softremove":
-#                                                         mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mkv"
+#                                                         mux_output = f"{Wdir}/{str(file_name)}_({str(sub_mode)}).mkv"
 #                                                         mux_res = await softremove_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
 #                                                 elif sub_mode=="softmux":
-#                                                         mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mkv"
+#                                                         mux_output = f"{Wdir}/{str(file_name)}_({str(sub_mode)}).mkv"
 #                                                         mux_res = await softmux_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
 #                                                 elif sub_mode=="hardmux":
-#                                                         mux_output = f"{Wdir}/{str(userx)}_{str(file_name)}_({str(sub_mode)}).mp4"
+#                                                         mux_output = f"{Wdir}/{str(file_name)}_({str(sub_mode)}).mp4"
 #                                                         mux_res = await hardmux_vidx(output_vid, sub_loc, mux_output, reply, subprocess_id, remux_preset, duration, progress, process_id, datam)
 #                                                 if mux_res[0]:
 #                                                         if mux_res[1]:
@@ -1563,6 +1598,7 @@ async def settings(client, message):
                 rclone = USER_DATA()[userx]['rclone']
                 custom_name = USER_DATA()[userx]['custom_name']
                 custom_thumbnail = USER_DATA()[userx]['custom_thumbnail']
+                custom_metadata = USER_DATA()[userx]['custom_metadata']
                 drive_name = USER_DATA()[userx]['drive_name']
                 positions = {'Set Top Left':"position_5:5", "Set Top Right": "position_main_w-overlay_w-5:5", "Set Bottom Left": "position_5:main_h-overlay_h", "Set Bottom Right": "position_main_w-overlay_w-5:main_h-overlay_h-5"}
                 sizes = [5,7,10,13,15,17,20,25,30,35,40,45]
@@ -1750,6 +1786,18 @@ async def settings(client, message):
                 for x in streams:
                     vlue = f"cname_{str(x)}"
                     if custom_name!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🔶Change MetaData- {str(custom_metadata)}🔶", callback_data="lol-custn")])
+                st = []
+                for x in streams:
+                    vlue = f"cmdata_{str(x)}"
+                    if custom_metadata!=x:
                         datam = f"{str(x)}"
                     else:
                         datam = f"{str(x)} 🟢"
