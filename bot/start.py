@@ -237,7 +237,7 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                                         command = ['ffmpeg','-hide_banner',
                                                                 '-progress', progress, '-i', cvideo,
                                                                 '-vf', f"scale=-2:{current_quality}",
-                                                                '-map','0:v',
+                                                                '-map','0:v?',
                                                                 '-map','0:a',
                                                                 "-map", "0:s?",
                                                                 '-preset', preset]
@@ -246,7 +246,7 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                                         command = ['ffmpeg','-hide_banner',
                                                                 '-progress', progress, '-i', cvideo,
                                                                 '-vf', f"scale=-2:{current_quality}",
-                                                                '-map','0:v',
+                                                                '-map','0:v?',
                                                                 '-map','0:a',
                                                                 '-preset', preset]
                                 if encode:
@@ -509,7 +509,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 modes['crf'] = 'False'
                                         watermark_path = f'./{str(userx)}_watermark.jpg'
                                         process_name = '🛺Adding Watermark'
-                                        command = ["ffmpeg", "-hide_banner", "-progress", progress, "-i", the_media, "-i", watermark_path, "-map", f"0:v", "-map", f"{str(map)}", "-map", f"0:s?",
+                                        command = ["ffmpeg", "-hide_banner", "-progress", progress, "-i", the_media, "-i", watermark_path, "-map", f"0:v?", "-map", f"{str(map)}?", "-map", f"0:s?",
                                                                         "-filter_complex", f"[1][0]scale2ref=w='iw*{watermark_size}/100':h='ow/mdar'[wm][vid];[vid][wm]overlay={watermark_position}", "-preset", preset]
                                         if encode:
                                                 encoder = USER_DATA()[userx]['watermark']['encoder']
@@ -541,8 +541,8 @@ async def processor(bot, message, muxing_type, *process_options):
                                         command = ['ffmpeg','-hide_banner',
                                                                 '-progress', progress, '-i', the_media,
                                                                 '-vf', f"subtitles='{sub_loc}'",
-                                                                '-map','0:v',
-                                                                '-map',f'{str(map)}',
+                                                                '-map','0:v?',
+                                                                '-map',f'{str(map)}?',
                                                                 '-preset', preset]
                                         if encode:
                                                 encoder = USER_DATA()[userx]['muxer']['encoder']
@@ -571,8 +571,8 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                 '-progress', progress, '-i', the_media,
                                                                 '-i',sub_loc,
                                                                 '-map','1:0',
-                                                                '-map','0:v',
-                                                                '-map',f'{str(map)}',
+                                                                '-map','0:v?',
+                                                                '-map',f'{str(map)}?',
                                                                 '-map','0:s?',
                                                                 '-disposition:s:0','default']
                                         if encode:
@@ -609,8 +609,8 @@ async def processor(bot, message, muxing_type, *process_options):
                                         command = ['ffmpeg','-hide_banner',
                                                                 '-progress', progress, '-i', the_media,
                                                                 '-i',sub_loc,
-                                                                '-map','0:v',
-                                                                '-map',f'{str(map)}',
+                                                                '-map','0:v?',
+                                                                '-map',f'{str(map)}?',
                                                                 '-map','1:0',
                                                                 '-disposition:s:0','default']
                                         if encode:
@@ -650,15 +650,17 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 modes['map_sub'] = 'True'
                                                 command = ['ffmpeg','-hide_banner',
                                                                         '-progress', progress, '-i', the_media,
-                                                                        '-map','0:v',
-                                                                        '-map',f'{str(map)}',
+                                                                        '-map','0:v?',
+                                                                        '-map',f'{str(map)}?',
                                                                         "-map", "0:s?"]
                                         else:
                                                 modes['map_sub'] = 'False'
                                                 command = ['ffmpeg','-hide_banner',
                                                                         '-progress', progress, '-i', the_media,
-                                                                        '-map','0:v',
-                                                                        '-map',f'{str(map)}']
+                                                                        '-map','0:v?',
+                                                                        '-map',f'{str(map)}?',
+                                                                        "-map", "0:s?",
+                                                                        "-c:s", "copy"]
                                         if encoder=='libx265':
                                                 c_mid = ['-vcodec','libx265', '-vtag', 'hvc1']
                                         else:
@@ -2125,7 +2127,7 @@ async def map_fns(client, message):
                 merge_map = USER_DATA()[userx]['merge']['map']
                 KeyBoard = []
                 streams = [True, False]
-                KeyBoard.append([InlineKeyboardButton(f"🏮Map Compress Subtitle - {str(compress_sub_map)}🏮", callback_data="lol-s")])
+                KeyBoard.append([InlineKeyboardButton(f"🏮Don't Copy Compress Subtitles - {str(compress_sub_map)}🏮", callback_data="lol-s")])
                 st = []
                 for x in streams:
                     vlue = f"cmapsub_{str(x)}"
