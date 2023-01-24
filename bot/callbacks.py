@@ -59,6 +59,12 @@ async def newbt(client, callback_query):
                     else:
                         new_position = False
                     await saveoptions(userx, 'upload_tg', new_position)
+                elif txt.startswith("cname_"):
+                    if new_position=="True":
+                        new_position = True
+                    else:
+                        new_position = False
+                    await saveoptions(userx, 'custom_name', new_position)
                 elif txt.startswith("setrclone_"):
                     await saveoptions(userx, 'drive_name', new_position)
                 elif txt.startswith("cthumb_"):
@@ -80,6 +86,7 @@ async def newbt(client, callback_query):
                 rclone = USER_DATA()[userx]['rclone']
                 custom_thumbnail = USER_DATA()[userx]['custom_thumbnail']
                 drive_name = USER_DATA()[userx]['drive_name']
+                custom_name = USER_DATA()[userx]['custom_name']
                 positions = {'Set Top Left':"position_5:5", "Set Top Right": "position_main_w-overlay_w-5:5", "Set Bottom Left": "position_5:main_h-overlay_h", "Set Bottom Right": "position_main_w-overlay_w-5:main_h-overlay_h-5"}
                 sizes = [5,7,10,13,15,17,20,25,30,35,40,45]
                 pkeys = list(positions.keys())
@@ -254,6 +261,18 @@ async def newbt(client, callback_query):
                 for x in streams:
                     vlue = f"cthumb_{str(x)}"
                     if custom_thumbnail!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🔶Use Custom Name - {str(custom_name)}🔶", callback_data="lol-custn")])
+                st = []
+                for x in streams:
+                    vlue = f"cname_{str(x)}"
+                    if custom_name!=x:
                         datam = f"{str(x)}"
                     else:
                         datam = f"{str(x)} 🟢"

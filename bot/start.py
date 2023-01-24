@@ -105,8 +105,6 @@ async def download_tg_file(bot, m, dl_loc, reply, start_time, datam, modes):
                                                 return [False, e]
                                         
 ###########Upload Drve#############
-
-
 async def upload_drive(bot, user_id, reply, cc, modes, file_name, mptime, userx, r_config, output_vids, ename):
                         total = len(output_vids)
                         q = 1
@@ -1563,6 +1561,7 @@ async def settings(client, message):
                 split = USER_DATA()[userx]['split']
                 upload_tg = USER_DATA()[userx]['upload_tg']
                 rclone = USER_DATA()[userx]['rclone']
+                custom_name = USER_DATA()[userx]['custom_name']
                 custom_thumbnail = USER_DATA()[userx]['custom_thumbnail']
                 drive_name = USER_DATA()[userx]['drive_name']
                 positions = {'Set Top Left':"position_5:5", "Set Top Right": "position_main_w-overlay_w-5:5", "Set Bottom Left": "position_5:main_h-overlay_h", "Set Bottom Right": "position_main_w-overlay_w-5:main_h-overlay_h-5"}
@@ -1739,6 +1738,18 @@ async def settings(client, message):
                 for x in streams:
                     vlue = f"cthumb_{str(x)}"
                     if custom_thumbnail!=x:
+                        datam = f"{str(x)}"
+                    else:
+                        datam = f"{str(x)} 🟢"
+                    keyboard = InlineKeyboardButton(datam, callback_data=vlue)
+                    st.append(keyboard)
+                KeyBoard.append(st)
+                streams = [True, False]
+                KeyBoard.append([InlineKeyboardButton(f"🔶Use Custom Name - {str(custom_name)}🔶", callback_data="lol-custn")])
+                st = []
+                for x in streams:
+                    vlue = f"cname_{str(x)}"
+                    if custom_name!=x:
                         datam = f"{str(x)}"
                     else:
                         datam = f"{str(x)} 🟢"
