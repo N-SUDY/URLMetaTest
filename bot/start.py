@@ -391,7 +391,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                         await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
                                         return
                 custom_metadata_title = False
-                if custom_name:
+                if custom_metadata:
                         try:
                                 ask = await bot.ask(user_id, f'*️⃣Send Me MetaData Title Name\n\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.text)
                                 custom_metadata_title = str(ask.text)
