@@ -235,12 +235,22 @@ async def take_screen_shot(video_file, output_directory, ttl):
 
 ##############Run CMD##################
 async def run_process_command(command):
+    print(command)
     try:
         process = await create_subprocess_exec(
             *command,
             stdout=asyncioPIPE,
             stderr=asyncioPIPE,
             )
+        while True:
+                    try:
+                            async for line in process:
+                                        line = line.decode('utf-8').strip()
+                                        print(line)
+                    except ValueError:
+                            continue
+                    else:
+                            break
         await process.communicate()
         return_code = process.returncode
         if return_code == 0:
@@ -257,6 +267,7 @@ async def ffmpeg_engine(bot, user_id, message, command, input_vid, output_vid, p
     print(f"🔶Starting {str(datam[0])} {modes['process_type']} Process")
     global all_data
     global msg_data
+    print(command)
     all_data = []
     msg_data = ['Processing']
     process_start_time = timex()

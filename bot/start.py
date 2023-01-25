@@ -435,19 +435,24 @@ async def processor(bot, message, muxing_type, *process_options):
                                 findex +=1
                                 infile_names += f"file '{str(dl_loc)}'\n"
                 if custom_metadata_title:
-                        output_meta = f"(MetaData) {str(file_name)}"
+                        output_meta = f"MetaData_{str(file_name)}"
                         trash_list.append(output_meta)
-                        cmd_meta = ["ffmpeg", "-i", {dl_loc}, f"-metadata:s:a title='{custom_metadata_title}'", f"-metadata:s:s title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
+                        cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:a title='{custom_metadata_title}'", f"-metadata:s:s title='{custom_metadata_title}'", "-map", "0", "-c", "copy", f"{output_meta}"]
                         met_result = await run_process_command(cmd_meta)
                         if not met_result:
-                                cmd_meta = ["ffmpeg", "-i", {dl_loc}, f"-metadata:s:a title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
+                                cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:a title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
                                 met_result = await run_process_command(cmd_meta)
                         if not met_result:
-                                cmd_meta = ["ffmpeg", "-i", {dl_loc}, f"-metadata:s:s title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
+                                cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:s title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
                                 met_result = await run_process_command(cmd_meta)
                         if met_result:
                                 await delete_trash(dl_loc)
                                 dl_loc = output_meta
+                                await bot.send_message(chat_id=user_id,
+                                                        text=f"✅MetaData Set Successfully")
+                        else:
+                                await bot.send_message(chat_id=user_id,
+                                                        text=f"❗Failed To Set MetaData")
                 if custom_final_name:
                         file_name = custom_final_name
                 try:
