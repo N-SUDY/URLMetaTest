@@ -78,9 +78,12 @@ async def update_message(message, input_vid, output_vid, preset, process_log, du
                         except:
                             position = watermark_position
                         process_options =  f"\n🥽WPosition: {str(position)}\n🛸WSize: {str(watermark_size)}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}"
-                elif modes['process_type'] == 'Compressing' or modes['process_type'] == 'Converting':
+                elif modes['process_type'] == 'Compressing':
                         map_sub = modes['map_sub']
-                        process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}\n🍓Copy Sub: {str(map_sub)}"
+                        process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}\n🍄Copy Sub: {str(map_sub)}"
+                elif modes['process_type'] == 'Converting':
+                        map_sub = modes['map_sub']
+                        process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}\n🍓Map Sub: {str(map_sub)}"
                 else:
                         process_options = f"\n🛡Mode: {str(modes['process_type'])}\n🎵CRF: {str(crf)}\n🍬Encoder: {str(encoder)}"
                 if modes['files']>1:
@@ -244,14 +247,14 @@ async def run_process_command(command):
             )
         while True:
                     try:
-                            async for line in process:
+                            async for line in process.stderr:
                                         line = line.decode('utf-8').strip()
                                         print(line)
                     except ValueError:
                             continue
                     else:
                             break
-        await process.communicate()
+        await process.wait()
         return_code = process.returncode
         if return_code == 0:
             return True

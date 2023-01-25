@@ -656,7 +656,7 @@ async def newbt(client, callback_query):
                 merge_map = USER_DATA()[userx]['merge']['map']
                 KeyBoard = []
                 streams = [True, False]
-                KeyBoard.append([InlineKeyboardButton(f"🏮Don't Copy Compress Subtitles - {str(compress_sub_map)}🏮", callback_data="lol-s")])
+                KeyBoard.append([InlineKeyboardButton(f"🏮Copy Compress Subtitles - {str(compress_sub_map)}🏮", callback_data="lol-s")])
                 st = []
                 for x in streams:
                     vlue = f"cmapsub_{str(x)}"

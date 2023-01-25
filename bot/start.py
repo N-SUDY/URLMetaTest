@@ -233,7 +233,7 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                                 if map_sub:
                                         modes['map_sub'] = 'True'
                                         command = ['ffmpeg','-hide_banner',
-                                                                '-progress', progress, '-i', cvideo,
+                                                                '-progress', progress, '-i', f"{cvideo}",
                                                                 '-vf', f"scale=-2:{current_quality}",
                                                                 '-map','0:v?',
                                                                 '-map','0:a',
@@ -258,9 +258,9 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                                         modes['encoder'] = "False"
                                         c_mid = ['-c:a','copy']
                                 if use_crf:
-                                        command = command + c_mid + ['-crf',f'{str(convert_crf)}', "-y", convert_vid]
+                                        command = command + c_mid + ['-c:s','copy', '-crf',f'{str(convert_crf)}', "-y", convert_vid]
                                 else:
-                                        command = command + c_mid + ["-y", convert_vid]
+                                        command = command + c_mid + ['-c:s','copy', "-y", convert_vid]
                                 await delete_trash(convert_vid)
                                 datam = (f"{file_name} ({str(vin)}/{str(vtot)})", process_name, mptime)
                                 modes['process_type'] = "Converting"
@@ -269,7 +269,7 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                                         duration = int(durationx(cvideo))
                                 except:
                                         pass
-                                print(command)
+                                
                                 try:
                                         cresult = await ffmpeg_engine(bot, user_id, reply, command, cvideo, convert_vid, preset, progress, duration, datam, modes)
                                         if cresult[0]:
@@ -345,7 +345,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 print(e)
                                                 await bot.send_message(user_id, "🔃Timed Out Or Some Error Occured! Tasked Has Been Cancelled.\nDefault Thumbnail Will Be Used Now")
                 print("🎨Process Type", muxing_type)
-                if muxing_type not in ['Watermark', 'Compressing', 'Merging']:
+                if muxing_type not in ['Watermark', 'Compressing', 'Merging', 'Convert']:
                         try:
                                 ask = await bot.ask(user_id, f'*️⃣Send Subtitle File To Mux\n\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.document)
                                 if ask.document:
@@ -367,7 +367,7 @@ async def processor(bot, message, muxing_type, *process_options):
                 append_master_process(process_id)
                 mptime = timex()
                 map = '0:a'
-                if muxing_type not in ['Watermark', 'Compressing', 'Merging']:
+                if muxing_type not in ['Watermark', 'Compressing', 'Merging', 'Convert']:
                                 subm = await bot.get_messages(user_id, sub_id, replies=0)
                                 sub_name = get_media(subm).file_name.replace(' ', '')
                                 sub_loc = f'{Ddir}/{str(userx)}_{str(sub_name)}'
@@ -437,13 +437,13 @@ async def processor(bot, message, muxing_type, *process_options):
                 if custom_metadata_title:
                         output_meta = f"MetaData_{str(file_name)}"
                         trash_list.append(output_meta)
-                        cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:a title='{custom_metadata_title}'", f"-metadata:s:s title='{custom_metadata_title}'", "-map", "0", "-c", "copy", f"{output_meta}"]
+                        cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:a", f"title={custom_metadata_title}", f"-metadata:s:s", f"title={custom_metadata_title}", "-map", "0", "-c", "copy", f"{output_meta}"]
                         met_result = await run_process_command(cmd_meta)
                         if not met_result:
-                                cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:a title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
+                                cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:a", f"title={custom_metadata_title}", "-map", "0", "-c", "copy", f"{output_meta}"]
                                 met_result = await run_process_command(cmd_meta)
                         if not met_result:
-                                cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:s title='{custom_metadata_title}'", "-map", "0", "-c", "copy", output_meta]
+                                cmd_meta = ["ffmpeg", "-i", f"{dl_loc}", f"-metadata:s:s", f"title={custom_metadata_title}", "-map", "0", "-c", "copy", f"{output_meta}"]
                                 met_result = await run_process_command(cmd_meta)
                         if met_result:
                                 await delete_trash(dl_loc)
@@ -563,7 +563,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 command = command + c_mid + ['-crf',f'{str(watermark_crf)}', "-c:s", "copy", "-y", output_vid]
                                         else:
                                                 command = command + c_mid + ["-c:s", "copy","-y", output_vid]
-                                        print(command)
+                                        
                                 elif muxing_type == 'HardMux':
                                         ename = f'{str(file_name)}_({str(muxing_type)}).mp4'
                                         output_vid = f"{Wdir}/{ename}"
@@ -596,7 +596,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 command = command + c_mid + ['-crf',f'{str(muxer_crf)}', "-y", output_vid]
                                         else:
                                                 command = command + c_mid + ["-y", output_vid]
-                                        print(command)
+                                        
                                 elif muxing_type == 'SoftMux':
                                         ename = f'{str(file_name)}_({str(muxing_type)}).mkv'
                                         output_vid = f"{Wdir}/{ename}"
@@ -635,7 +635,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 modes['encoder'] = "False"
                                                 c_mid = ['-c','copy']
                                         command = command + c_mid + ["-y", output_vid]
-                                        print(command)
+                                        
                                 elif muxing_type == 'SoftReMux':
                                         ename = f'{str(file_name)}_({str(muxing_type)}).mkv'
                                         output_vid = f"{Wdir}/{ename}"
@@ -673,7 +673,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 modes['encoder'] = "False"
                                                 c_mid = ['-c','copy']
                                         command = command + c_mid + ["-y", output_vid]
-                                        print(command)
+                                        
                                 elif muxing_type=='Compressing':
                                         ename = f'{str(file_name)}.mkv'
                                         output_vid = f"{Wdir}/{ename}"
@@ -684,7 +684,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                         process_name = '🏮Compressing Video'
                                         modes['crf'] = compress_crf
                                         compress_sub_map = USER_DATA()[userx]['compress']['map_sub']
-                                        if compress_sub_map:
+                                        if not compress_sub_map:
                                                 modes['map_sub'] = 'False'
                                                 command = ['ffmpeg','-hide_banner',
                                                                         '-progress', progress, '-i', the_media,
@@ -751,12 +751,26 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                                 "copy",
                                                                                 output_vid,
                                                                         ]
-                                        print(command)
-                                trash_list.append(output_vid)
-                                await delete_trash(output_vid)
-                                datam = (file_name, process_name, mptime)
+                                try:
+                                        trash_list.append(output_vid)
+                                        await delete_trash(output_vid)
+                                        datam = (file_name, process_name, mptime)
+                                except:
+                                        pass
                                 modes['process_type'] = muxing_type
-                                if muxing_type!='Merging':
+                                if muxing_type=='Convert':
+                                        convert_result = await convert_video_fns(bot, user_id, reply, userx, [the_media], modes,file_name, Wdir, mptime)
+                                        if not convert_result[0]:
+                                                trash_list = trash_list + convert_result[1]
+                                                await clear_trash_list(trash_list)
+                                                await reply.edit("🔒Task Cancelled By User")
+                                                return
+                                        else:
+                                                wresult = [True, False]
+                                                convert_video = False
+                                                split_video = False
+                                                output_vid =  str(convert_result[2]).replace("[", "").replace("]", "")
+                                elif muxing_type!='Merging':
                                         wresult = await ffmpeg_engine(bot, user_id, reply, command, the_media, output_vid, preset, progress, duration, datam, modes)
                                 else:
                                         wresult = await ffmpeg_engine(bot, user_id, reply, command, ftotal, output_vid, preset, progress, 0, datam, modes)
@@ -785,48 +799,49 @@ async def processor(bot, message, muxing_type, *process_options):
                                                         upload_tg = True
                                                 if upload_tg:
                                                                 final_video = [output_vid]
-                                                                final_size = getsize(output_vid)
-                                                                split_video = USER_DATA()[userx]['split_video']
-                                                                use_premium = False
-                                                                if final_size>2097151000:
-                                                                        if split_video:
-                                                                                        split_at = USER_DATA()[userx]['split']
-                                                                                        if split_at=='2GB':
-                                                                                                split_size = 2097151000
-                                                                                        else:
-                                                                                                if USER:
-                                                                                                        try:
-                                                                                                                User_Data = await USER.get_me()
-                                                                                                                premium = User_Data.is_premium
-                                                                                                                if premium:
-                                                                                                                        use_premium = True
-                                                                                                                        split_size = 4194304000
+                                                                if len(final_video) == 1:
+                                                                                final_size = getsize(output_vid)
+                                                                                split_video = USER_DATA()[userx]['split_video']
+                                                                                use_premium = False
+                                                                                if final_size>2097151000:
+                                                                                        if split_video:
+                                                                                                        split_at = USER_DATA()[userx]['split']
+                                                                                                        if split_at=='2GB':
+                                                                                                                split_size = 2097151000
+                                                                                                        else:
+                                                                                                                if USER:
+                                                                                                                        try:
+                                                                                                                                User_Data = await USER.get_me()
+                                                                                                                                premium = User_Data.is_premium
+                                                                                                                                if premium:
+                                                                                                                                        use_premium = True
+                                                                                                                                        split_size = 4194304000
+                                                                                                                                else:
+                                                                                                                                        split_size = 2097151000
+                                                                                                                        except Exception as e:
+                                                                                                                                print(e)
+                                                                                                                                split_size = 2097151000
                                                                                                                 else:
                                                                                                                         split_size = 2097151000
-                                                                                                        except Exception as e:
-                                                                                                                print(e)
-                                                                                                                split_size = 2097151000
-                                                                                                else:
-                                                                                                        split_size = 2097151000
-                                                                                        split_size = split_size - 5000000
-                                                                                        if use_premium:
-                                                                                                if getsize(output_vid)<split_size:
-                                                                                                        split_video = False
-                                                                                        if split_video:
-                                                                                                await reply.edit("🪓Splitting Video")
-                                                                                                await make_direc(Sdir)
-                                                                                                await create_process_file(progress)
-                                                                                                modes['process_type'] = 'Splitting'
-                                                                                                datam = (file_name, '🪓Splitting Video', mptime)
-                                                                                                sresult = await  split_video_file(bot, user_id, reply, split_size, Sdir, output_vid, file_name, progress, duration, datam, modes)
-                                                                                                if sresult[0]:
-                                                                                                        if sresult[1]:
-                                                                                                                await clear_trash_list(trash_list)
-                                                                                                                await reply.edit("🔒Task Cancelled By User")
-                                                                                                                return
-                                                                                                        else:
-                                                                                                                trash_list = trash_list + sresult[2]
-                                                                                                                final_video = sresult[2]
+                                                                                                        split_size = split_size - 5000000
+                                                                                                        if use_premium:
+                                                                                                                if getsize(output_vid)<split_size:
+                                                                                                                        split_video = False
+                                                                                                        if split_video:
+                                                                                                                await reply.edit("🪓Splitting Video")
+                                                                                                                await make_direc(Sdir)
+                                                                                                                await create_process_file(progress)
+                                                                                                                modes['process_type'] = 'Splitting'
+                                                                                                                datam = (file_name, '🪓Splitting Video', mptime)
+                                                                                                                sresult = await  split_video_file(bot, user_id, reply, split_size, Sdir, output_vid, file_name, progress, duration, datam, modes)
+                                                                                                                if sresult[0]:
+                                                                                                                        if sresult[1]:
+                                                                                                                                await clear_trash_list(trash_list)
+                                                                                                                                await reply.edit("🔒Task Cancelled By User")
+                                                                                                                                return
+                                                                                                                        else:
+                                                                                                                                trash_list = trash_list + sresult[2]
+                                                                                                                                final_video = sresult[2]
                                                                 if convert_video:
                                                                         convert_result = await convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_name, Wdir, mptime)
                                                                         if not convert_result[0]:
@@ -1118,6 +1133,20 @@ async def compressvideo(bot, message):
                 return
         
 
+###########Compress Video#################
+@Client.on_message(filters.command('convert'))
+async def convertxvideo(bot, message):
+        user_id = message.chat.id
+        userx = message.from_user.id
+        if userx not in USER_DATA():
+                await new_user(userx)
+        if userx in sudo_users:
+                muxing_type = 'Convert'
+                await processor(bot, message,muxing_type)
+                return
+        else:
+                await bot.send_message(user_id, "❌Not Authorized")
+                return
 
 ##############Req######################
 @Client.on_message(filters.command(["merge"]))
@@ -2191,7 +2220,7 @@ async def map_fns(client, message):
                 merge_map = USER_DATA()[userx]['merge']['map']
                 KeyBoard = []
                 streams = [True, False]
-                KeyBoard.append([InlineKeyboardButton(f"🏮Don't Copy Compress Subtitles - {str(compress_sub_map)}🏮", callback_data="lol-s")])
+                KeyBoard.append([InlineKeyboardButton(f"🏮Copy Compress Subtitles - {str(compress_sub_map)}🏮", callback_data="lol-s")])
                 st = []
                 for x in streams:
                     vlue = f"cmapsub_{str(x)}"
