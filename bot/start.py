@@ -2400,3 +2400,50 @@ async def convert_fns(client, message):
                         reply_markup= InlineKeyboardMarkup(KeyBoard)
                         )
                 return
+        
+
+################sudo####################
+@Client.on_message(filters.command(["addsudo"]))
+async def sudo_appedn(client, message):
+    user_id = message.chat.id
+    userx = message.from_user.id
+    if userx in sudo_users:
+        try:
+                ask = await client.ask(user_id, '*️⃣Give ID.\n\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.text)
+                ask_id = int(ask.text)
+                sudo_users.append(ask_id)
+                await client.send_message(chat_id=user_id,
+                                text=str(sudo_users))
+        except:
+                await client.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
+                return
+    else:
+        await client.send_message(chat_id=user_id,
+                                text=f"❌Only Authorized Users Can Use This Command")
+        return
+
+
+
+################sudo delete####################
+@Client.on_message(filters.command(["delsudo"]))
+async def sudo_delete(client, message):
+    user_id = message.chat.id
+    userx = message.from_user.id
+    if userx in sudo_users:
+        try:
+                ask = await client.ask(user_id, '*️⃣Give ID.\n\n⏳Request Time Out In 60 Seconds', timeout=60, filters=filters.text)
+                ask_id = int(ask.text)
+        except:
+                await client.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
+                return
+        try:
+            sudo_users.remove(ask_id)
+            await client.send_message(chat_id=user_id,
+                            text=str(sudo_users))
+        except Exception as e:
+                await client.send_message(user_id, str(e))
+                return
+    else:
+        await client.send_message(chat_id=user_id,
+                                text=f"❌Only Authorized Users Can Use This Command")
+        return
