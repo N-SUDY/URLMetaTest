@@ -2,9 +2,11 @@ from config import Config
 from pyromod import listen
 from pyrogram import Client, idle
 from helper_fns.helper import clear_restart
+from time import sleep
 
 
 User_Data = eval(Config.User_Data)
+sudo_users = eval(Config.SUDO_USERS)
 
 app = Client(
     "Nik66TestBot",
@@ -27,6 +29,12 @@ if __name__ == "__main__":
                 print(f"💎Telegram Premium Found For  User {first_name}")
             print(f'🔒User Session For {first_name} Started Successfully!🔒')
     uname = app.get_me().username
+    try:
+        for user_id in sudo_users:
+                app.send_message(user_id, f"✅Bot Started")
+                sleep(1)
+    except Exception as e:
+        print(e)
     try:
         if 'restart' in User_Data:
             if len(User_Data['restart'])!=0:
