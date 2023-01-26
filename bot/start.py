@@ -291,6 +291,7 @@ async def processor(bot, message, muxing_type, *process_options):
                 user_id = message.chat.id
                 userx = message.from_user.id
                 trash_list = []
+                converted_videos = False
                 Ddir = f'./{str(userx)}_RAW'
                 Wdir = f'./{str(userx)}_WORKING'
                 Sdir = f'./{str(userx)}_Split'
@@ -769,7 +770,8 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 wresult = [True, False]
                                                 convert_video = False
                                                 split_video = False
-                                                output_vid =  str(convert_result[2]).replace("[", "").replace("]", "")
+                                                converted_videos = True
+                                                output_vid =  convert_result[2]
                                 elif muxing_type!='Merging':
                                         wresult = await ffmpeg_engine(bot, user_id, reply, command, the_media, output_vid, preset, progress, duration, datam, modes)
                                 else:
@@ -798,7 +800,10 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 if not USER_DATA()[userx]['drive_name']:
                                                         upload_tg = True
                                                 if upload_tg:
-                                                                final_video = [output_vid]
+                                                                if muxing_type!='Convert':
+                                                                        final_video = [output_vid]
+                                                                else:
+                                                                        final_video = output_vid
                                                                 if len(final_video) == 1:
                                                                                 final_size = getsize(output_vid)
                                                                                 split_video = USER_DATA()[userx]['split_video']
@@ -857,7 +862,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                         final_thumb = thumb_loc
                                                                 datam = [file_name, '🔼Uploading Video', '𝚄𝚙𝚕𝚘𝚊𝚍𝚎𝚍', mptime]
                                                                 start_time = timex()
-                                                                if split_video:
+                                                                if split_video or converted_videos:
                                                                         if not use_premium:
                                                                                 upload = await send_tg_video(bot, user_id, final_video, cc, duration, final_thumb, reply, start_time, datam, modes)
                                                                         else:
@@ -883,7 +888,10 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                                         else:
                                                                                                 await bot.send_message(user_id, "❗Failed to upload video as file size is greater than 2gb.")
                                                 else:
-                                                        final_video = [output_vid]
+                                                        if muxing_type!='Convert':
+                                                                final_video = [output_vid]
+                                                        else:
+                                                                final_video = output_vid
                                                         if convert_video:
                                                                         convert_result = await convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_name, Wdir, mptime)
                                                                         if not convert_result[0]:
