@@ -1,7 +1,7 @@
 from pyrogram import Client,  filters
 from config import Config
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from helper_fns.helper import get_readable_time, USER_DATA, get_media, timex, delete_all, delete_trash, new_user, create_process_file, make_direc, durationx, clear_trash_list, check_filex, save_restart, process_checker, saveoptions, get_human_size
+from helper_fns.helper import get_readable_time, USER_DATA, get_media, timex, delete_all, delete_trash, new_user, create_process_file, make_direc, durationx, clear_trash_list, check_filex, save_restart, process_checker, saveoptions, get_human_size, get_size, time_formatter, Timer
 from config import botStartTime
 from string import ascii_lowercase, digits
 from random import choices
@@ -11,13 +11,16 @@ from helper_fns.process import append_master_process, remove_master_process, get
 from os import execl
 from sys import argv, executable
 from helper_fns.engine import ffmpeg_engine, upload_rclone, run_process_command
-from helper_fns.progress_bar import progress_bar
+from helper_fns.progress_bar import progress_bar, get_progress_bar_string
 from helper_fns.helper import execute
 from json import loads
 from math import ceil
 from os.path import getsize, splitext, join, exists
 from re import escape
 from datetime import datetime
+from aiohttp import ClientSession
+from os.path import basename as osbasename
+from time import time
 
 
 
@@ -284,7 +287,65 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                 return [True, trash_list, csend]
 
 
-
+async def download_coroutine(session, url, file_name, reply, start, check_data, cmsg):
+    CHUNK_SIZE = 1024 * 6  # 2341
+    downloaded = 0
+    humanbytes = get_size
+    timer = Timer(7)
+    Cancel = False
+    async with session.get(url) as response:
+      try:
+        total_length = int(response.headers["Content-Length"])
+        content_type = response.headers["Content-Type"]
+        if "text" in content_type and total_length < 500:
+            await response.release()
+            await reply.edit("❗Error: Got Text From Link")
+            return False
+        show_file_name = file_name.split("/")[-1]
+        with open(file_name, "wb") as f_handle:
+            while True:
+                chunk = await response.content.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                checker = await process_checker(check_data)
+                if not checker:
+                        await reply.edit("🔒Task Cancelled By User")
+                        Cancel = True
+                        break
+                f_handle.write(chunk)
+                downloaded += CHUNK_SIZE
+                now = time()
+                diff = now - start
+                if round(diff % 10.00) == 0:  #downloaded == total_length:
+                    percentage = downloaded * 100 / total_length
+                    speed = downloaded / diff
+                    elapsed_time = round(diff) * 1000
+                    time_to_completion = (round(
+                        (total_length - downloaded) / speed) * 1000)
+                    estimated_total_time = elapsed_time + time_to_completion
+                    try:
+                        if total_length < downloaded:
+                            total_length = downloaded
+                        if timer.can_send():
+                                progress = get_progress_bar_string(downloaded,total_length)
+                                msg = f"{show_file_name}\n\n\n{str(progress)}\n\n🔽Downloaded : {humanbytes(downloaded)}\n💾Size : {humanbytes(total_length)}\n⚡Speed : {humanbytes(speed)}\n🧬Progress : {percentage:.2f}%\n🧭Elapsed: {time_formatter(elapsed_time)}\n⏳ETA: {time_formatter(estimated_total_time)}\n{str(cmsg)}"
+                                try:
+                                    await reply.edit(text=msg)
+                                except FloodWait as e:
+                                    await asynciosleep(e.value)
+                                except Exception as e:
+                                    print(e)
+                    except Exception as e:
+                        print("Error", e)
+        await response.release()
+        if Cancel:
+                return False
+        else:
+                return True
+      except Exception as e:
+              await reply.edit(f"❗Error: {str(e)}")
+              return False
+        
 
 ##########Processor################
 async def processor(bot, message, muxing_type, *process_options):
@@ -301,6 +362,7 @@ async def processor(bot, message, muxing_type, *process_options):
                 custom_name = USER_DATA()[userx]['custom_name']
                 custom_metadata = USER_DATA()[userx]['custom_metadata']
                 process_id = str(''.join(choices(ascii_lowercase + digits, k=10)))
+                URL = False
                 if muxing_type!='Merging':
                                 try:
                                                 file_type = message.reply_to_message.video or message.reply_to_message.document
@@ -311,14 +373,23 @@ async def processor(bot, message, muxing_type, *process_options):
                                                         return
                                 except:
                                         try:
-                                                ask = await bot.ask(user_id, '*️⃣ Send Me Video\n\n⌛Request TimeOut In 120 Seconds', timeout=120, filters=(filters.document | filters.video))
-                                                file_type = ask.video or ask.document
-                                                if file_type.mime_type.startswith("video/"):
-                                                        file_id = [ask.id]
+                                                ask = await bot.ask(user_id, '*️⃣ Send Me Video Or Link\n\n⌛Request TimeOut In 120 Seconds', timeout=120, filters=(filters.document | filters.video | filters.text))
+                                                if not ask.video or ask.document:
+                                                                url = str(ask.text).strip()
+                                                                file_id = [url]
+                                                                URL = True
+                                                                if not url.startswith("http"):
+                                                                        await ask.request.delete()
+                                                                        await bot.send_message(user_id, "❌Invalid URL")
+                                                                        return
                                                 else:
-                                                        await ask.request.delete()
-                                                        await bot.send_message(user_id, "❌Invalid Media")
-                                                        return
+                                                        file_type = ask.video or ask.document
+                                                        if file_type.mime_type.startswith("video/"):
+                                                                file_id = [ask.id]
+                                                        else:
+                                                                await ask.request.delete()
+                                                                await bot.send_message(user_id, "❌Invalid Media")
+                                                                return
                                         except:
                                                 await bot.send_message(user_id, "🔃Timed Out! Tasked Has Been Cancelled.")
                                                 return
@@ -403,39 +474,53 @@ async def processor(bot, message, muxing_type, *process_options):
                 reply = await bot.send_message(chat_id=user_id,
                                                         text=f"🔽Starting Download")
                 for fid in file_id:
-                                m = await bot.get_messages(user_id, fid, replies=0)
-                                media = get_media(m)
-                                try:
-                                        file_name = media.file_name
-                                except Exception as e:
-                                        merror = 'Message_Error.txt'
-                                        trash_list.append(merror)
-                                        zxx = open(merror, "w", encoding="utf-8")
-                                        zxx.write(str(m))
-                                        zxx.close()
-                                        await bot.send_document(chat_id=user_id, document=merror, caption={str(e)})
-                                        await clear_trash_list(trash_list)
-                                        return
-                                punc = ['!', '(', ')', '[', ']', '|', '{', '}', ';', ':', "'", '=', '"', '\\', ',', '<', '>', '/', '?', '@', '#', '$', '%', '^', '&', '*', '~', "  ", "\t", "+", "b'", "'"]
-                                for ele in punc:
-                                        if ele in file_name:
-                                                file_name = file_name.replace(ele, '')
-                                date_now = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
-                                file_name = f'{str(date_now)} {str(file_name)}'
-                                dl_loc = f'{Ddir}/{str(file_name)}'
-                                trash_list.append(dl_loc)
-                                start_time = timex()
-                                modes = {'files': 1, 'process_id': process_id}
-                                datam = (file_name, '🔽Downloading Video', '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', mptime, f'[{str(findex)}/{str(ftotal)}]')
-                                download = await download_tg_file(bot, m, dl_loc, reply, start_time, datam, modes)
-                                check_data = [[process_id, get_master_process()]]
-                                checker = await process_checker(check_data)
-                                if not checker:
-                                        await clear_trash_list(trash_list)
-                                        await reply.edit("🔒Task Cancelled By User")
-                                        return
-                                findex +=1
-                                infile_names += f"file '{str(dl_loc)}'\n"
+                                if not URL:
+                                        m = await bot.get_messages(user_id, fid, replies=0)
+                                        media = get_media(m)
+                                        try:
+                                                file_name = media.file_name
+                                        except Exception as e:
+                                                merror = 'Message_Error.txt'
+                                                trash_list.append(merror)
+                                                zxx = open(merror, "w", encoding="utf-8")
+                                                zxx.write(str(m))
+                                                zxx.close()
+                                                await bot.send_document(chat_id=user_id, document=merror, caption={str(e)})
+                                                await clear_trash_list(trash_list)
+                                                return
+                                        punc = ['!', '(', ')', '[', ']', '|', '{', '}', ';', ':', "'", '=', '"', '\\', ',', '<', '>', '/', '?', '@', '#', '$', '%', '^', '&', '*', '~', "  ", "\t", "+", "b'", "'"]
+                                        for ele in punc:
+                                                if ele in file_name:
+                                                        file_name = file_name.replace(ele, '')
+                                        date_now = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+                                        file_name = f'{str(date_now)} {str(file_name)}'
+                                        dl_loc = f'{Ddir}/{str(file_name)}'
+                                        trash_list.append(dl_loc)
+                                        start_time = timex()
+                                        modes = {'files': 1, 'process_id': process_id}
+                                        datam = (file_name, '🔽Downloading Video', '𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍𝚎𝚍', mptime, f'[{str(findex)}/{str(ftotal)}]')
+                                        download = await download_tg_file(bot, m, dl_loc, reply, start_time, datam, modes)
+                                        check_data = [[process_id, get_master_process()]]
+                                        checker = await process_checker(check_data)
+                                        if not checker:
+                                                await clear_trash_list(trash_list)
+                                                await reply.edit("🔒Task Cancelled By User")
+                                                return
+                                        findex +=1
+                                        infile_names += f"file '{str(dl_loc)}'\n"
+                                else:
+                                        file_name = osbasename(fid)
+                                        dl_loc = f'{Ddir}/{str(file_name)}'
+                                        trash_list.append(dl_loc)
+                                        start_time = timex()
+                                        check_data = [[process_id, get_master_process()]]
+                                        cmsg = f"🔴Cancel Task: `/cancel mp {str(process_id)}`"
+                                        async with ClientSession() as session:
+                                                download = await download_coroutine(session, fid, file_name, reply, start_time, check_data, cmsg)
+                                        if not download:
+                                                return
+                                        else:
+                                                download = [True, False]
                 if custom_metadata_title:
                         output_meta = f"MetaData_{str(file_name)}"
                         trash_list.append(output_meta)
