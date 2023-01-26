@@ -287,7 +287,7 @@ async def convert_video_fns(bot, user_id, reply, userx, final_video, modes,file_
                 return [True, trash_list, csend]
 
 
-async def download_coroutine(session, url, file_name, reply, start, check_data, cmsg):
+async def download_coroutine(session, url, dl_loc, file_name, reply, start, check_data, cmsg):
     CHUNK_SIZE = 1024 * 6  # 2341
     downloaded = 0
     humanbytes = get_size
@@ -302,7 +302,7 @@ async def download_coroutine(session, url, file_name, reply, start, check_data, 
             await reply.edit("❗Error: Got Text From Link")
             return False
         show_file_name = file_name.split("/")[-1]
-        with open(file_name, "wb") as f_handle:
+        with open(dl_loc, "wb") as f_handle:
             while True:
                 chunk = await response.content.read(CHUNK_SIZE)
                 if not chunk:
@@ -513,10 +513,11 @@ async def processor(bot, message, muxing_type, *process_options):
                                         dl_loc = f'{Ddir}/{str(file_name)}'
                                         trash_list.append(dl_loc)
                                         start_time = timex()
+                                        modes = {'files': 1, 'process_id': process_id}
                                         check_data = [[process_id, get_master_process()]]
                                         cmsg = f"🔴Cancel Task: `/cancel mp {str(process_id)}`"
                                         async with ClientSession() as session:
-                                                download = await download_coroutine(session, fid, file_name, reply, start_time, check_data, cmsg)
+                                                download = await download_coroutine(session, fid, dl_loc, file_name, reply, start_time, check_data, cmsg)
                                         if not download:
                                                 return
                                         else:
