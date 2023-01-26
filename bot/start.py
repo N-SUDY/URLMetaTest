@@ -344,6 +344,7 @@ async def processor(bot, message, muxing_type, *process_options):
                                                         custom_thumb = True
                                 except Exception as e:
                                                 print(e)
+                                                custom_thumb = False
                                                 await bot.send_message(user_id, "🔃Timed Out Or Some Error Occured! Tasked Has Been Cancelled.\nDefault Thumbnail Will Be Used Now")
                 print("🎨Process Type", muxing_type)
                 if muxing_type not in ['Watermark', 'Compressing', 'Merging', 'Convert']:
@@ -800,11 +801,26 @@ async def processor(bot, message, muxing_type, *process_options):
                                                 if not USER_DATA()[userx]['drive_name']:
                                                         upload_tg = True
                                                 if upload_tg:
+                                                                big_file = False
                                                                 if muxing_type!='Convert':
                                                                         final_video = [output_vid]
                                                                 else:
                                                                         final_video = output_vid
-                                                                if len(final_video) == 1:
+                                                                        for f in output_vid:
+                                                                                f_size = getsize(f)
+                                                                                if f_size>2097151000:
+                                                                                        big_file = True
+                                                                                        break
+                                                                use_premium = False
+                                                                if USER:
+                                                                        User_Data = await USER.get_me()
+                                                                        premium = User_Data.is_premium
+                                                                        if premium:
+                                                                                if big_file:
+                                                                                        use_premium = True
+                                                                                else:
+                                                                                        use_premium = False
+                                                                if muxing_type!='Convert':
                                                                                 final_size = getsize(output_vid)
                                                                                 split_video = USER_DATA()[userx]['split_video']
                                                                                 use_premium = False
@@ -816,8 +832,6 @@ async def processor(bot, message, muxing_type, *process_options):
                                                                                                         else:
                                                                                                                 if USER:
                                                                                                                         try:
-                                                                                                                                User_Data = await USER.get_me()
-                                                                                                                                premium = User_Data.is_premium
                                                                                                                                 if premium:
                                                                                                                                         use_premium = True
                                                                                                                                         split_size = 4194304000
